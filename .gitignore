@@ -31,3 +31,10 @@ yarn-error.log*
 
 # Test coverage
 coverage/
+
+# AI-generated files (Claude Code)
+.claude/
+CLAUDE.md
+ROADMAP.md
+DIARY.md
+CHANGELOG.md

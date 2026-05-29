@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  playerId  String   @unique   // "sub" do JWT — ID único do jogador no Keycloak
+  username  String             // "preferred_username" do JWT
+  balance   BigInt   @default(0) // CENTAVOS. R$1,50 = 150n. NUNCA Float.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wallets")
+}
