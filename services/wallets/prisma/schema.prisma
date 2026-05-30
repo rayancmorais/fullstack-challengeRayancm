@@ -6,13 +6,14 @@ datasource db {
   provider = "postgresql"
 }
 
+// @map mantém os nomes das colunas no banco intactos — sem nova migration necessária
 model Wallet {
-  id        String   @id @default(uuid())
-  playerId  String   @unique   // "sub" do JWT — ID único do jogador no Keycloak
-  username  String             // "preferred_username" do JWT
-  balance   BigInt   @default(0) // CENTAVOS. R$1,50 = 150n. NUNCA Float.
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  jogadorId    String   @unique @map("playerId")   // "sub" do token JWT do Keycloak
+  nomeUsuario  String   @map("username")           // "preferred_username" do JWT
+  saldo        BigInt   @default(0) @map("balance") // centavos. R$1,50 = 150n. Nunca Float.
+  criadoEm     DateTime @default(now()) @map("createdAt")
+  atualizadoEm DateTime @updatedAt @map("updatedAt")
 
   @@map("wallets")
 }
