@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Round {
+  id               String    @id @default(uuid())
+  status           String    // APOSTAS_ABERTAS | RODANDO | CRASHADO
+  hashSeedServidor String    // divulgado antes das apostas abrirem
+  seedServidor     String    // revelado após o crash para verificação
+  pontoCrash       Float     // calculado antes das apostas, nunca muda
+  iniciadoEm       DateTime  @default(now())
+  crashadoEm       DateTime?
+  apostas          Bet[]
+
+  @@map("rodadas")
+}
+
+model Bet {
+  id                 String    @id @default(uuid())
+  rodadaId           String
+  jogadorId          String
+  nomeUsuario        String
+  valorCentavos      BigInt    // centavos — nunca Float
+  status             String    // PENDENTE | SACADO | PERDIDO | CANCELADO
+  multiplicadorSaque Float?    // preenchido somente quando sacado
+  pagamentoCentavos  BigInt?   // preenchido somente quando sacado
+  apostadoEm         DateTime  @default(now())
+  rodada             Round     @relation(fields: [rodadaId], references: [id])
+
+  @@unique([rodadaId, jogadorId]) // garante 1 aposta por jogador por rodada
+  @@map("apostas")
+}
