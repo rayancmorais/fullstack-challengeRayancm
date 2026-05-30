@@ -4,7 +4,7 @@ import { CreateWalletUseCase } from '../../application/create-wallet.use-case';
 import { GetWalletUseCase } from '../../application/get-wallet.use-case';
 import { KeycloakJwtGuard } from '../../infrastructure/guards/keycloak-jwt.guard';
 import { UsuarioAtual } from '../../infrastructure/decorators/current-user.decorator';
-import { UsuarioAutenticado } from '../../infrastructure/guards/keycloak-jwt.strategy';
+import type { UsuarioAutenticado } from '../../infrastructure/guards/keycloak-jwt.strategy';
 import { WalletResponseDto } from '../dtos/wallet-response.dto';
 import { HealthCheckResponseDto } from '../dtos/health-check-response.dto';
 

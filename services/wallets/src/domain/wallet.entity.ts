@@ -1,4 +1,4 @@
-import { Resultado } from './result.type';
+import type { Resultado } from './result.type';
 
 export class Wallet {
   private constructor(

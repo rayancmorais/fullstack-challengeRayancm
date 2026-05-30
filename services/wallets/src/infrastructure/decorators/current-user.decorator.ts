@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { UsuarioAutenticado } from '../guards/keycloak-jwt.strategy';
+import type { UsuarioAutenticado } from '../guards/keycloak-jwt.strategy';
 
 export const UsuarioAtual = createParamDecorator(
   (_dados: unknown, ctx: ExecutionContext): UsuarioAutenticado => {
