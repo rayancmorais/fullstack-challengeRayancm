@@ -1,0 +1,59 @@
+'use client'
+import { useAuth } from 'react-oidc-context'
+import { fmt, initials } from '@/lib/utils'
+
+const IconRocket = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+  </svg>
+)
+
+const IconLogout = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 17, height: 17 }}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+)
+
+interface Props {
+  username: string
+  saldo: number
+}
+
+export function Topbar({ username, saldo }: Props) {
+  const auth = useAuth()
+
+  const handleLogout = () => {
+    auth.removeUser()
+    auth.signoutRedirect({ post_logout_redirect_uri: window.location.origin })
+  }
+
+  return (
+    <header className="topbar">
+      <div className="brand">
+        <span className="logo"><IconRocket /></span>
+        <span>NOVA<span className="x">X</span></span>
+      </div>
+      <div className="topbar-right">
+        <div className="balance-chip">
+          <div>
+            <div className="bal-label">Saldo</div>
+            <div className="bal-val"><span className="cur">R$</span>{fmt(saldo)}</div>
+          </div>
+          <div className="avatar">{initials(username)}</div>
+          <div className="user-meta">
+            <span className="uname">{username}</span>
+            <span className="ulabel">via JWT</span>
+          </div>
+        </div>
+        <button className="logout-btn" title="Sair" onClick={handleLogout}>
+          <IconLogout />
+        </button>
+      </div>
+    </header>
+  )
+}
