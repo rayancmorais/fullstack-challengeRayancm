@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { WalletRepository } from '../domain/wallet.repository';
-import { PublicadorMensagens, PUBLICADOR_MENSAGENS } from './debit-wallet.use-case';
+import { type PublicadorMensagens, PUBLICADOR_MENSAGENS } from './debit-wallet.use-case';
 
 interface CreditarCarteiraDto {
   apostaId: string;
