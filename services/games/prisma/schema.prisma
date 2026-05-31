@@ -26,6 +26,7 @@ model Bet {
   nomeUsuario        String
   valorCentavos      BigInt    // centavos — nunca Float
   status             String    // PENDENTE | SACADO | PERDIDO | CANCELADO
+  autoCashout        Float?    // multiplicador alvo para saque automático no servidor
   multiplicadorSaque Float?    // preenchido somente quando sacado
   pagamentoCentavos  BigInt?   // preenchido somente quando sacado
   apostadoEm         DateTime  @default(now())
