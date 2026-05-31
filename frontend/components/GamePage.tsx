@@ -4,6 +4,7 @@ import { useAuth } from 'react-oidc-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useGameStore } from '@/store/game'
 import { useGameSocket } from '@/hooks/useGameSocket'
+import { useBots } from '@/hooks/useBots'
 import { Topbar } from './Topbar'
 import { Stage } from './Stage'
 import { HistoryRail } from './HistoryRail'
@@ -12,14 +13,17 @@ import { BetsList } from './BetsList'
 import { SessionStats } from './SessionStats'
 import { Toasts } from './Toasts'
 import { FairModal } from './FairModal'
+import { AutoBetPanel } from './AutoBetPanel'
+import { Leaderboard } from './Leaderboard'
 import { placeBet, cashout, getWallet, getCurrentRound, getRoundHistory, createWallet } from '@/lib/api'
 import { centavosParaReais } from '@/lib/utils'
+import { Sound } from '@/lib/sound'
 import type { Stats } from './SessionStats'
+import type { AutoBetCfg } from './AutoBetPanel'
 
 export function GamePage() {
   const auth = useAuth()
 
-  // Redirect to Keycloak if not authenticated
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated) {
       auth.signinRedirect()
@@ -37,6 +41,7 @@ function Game() {
   const qc = useQueryClient()
   const store = useGameStore()
   useGameSocket()
+  useBots()
 
   const token = auth.user?.access_token || ''
   const playerJogadorId = auth.user?.profile.sub || ''
@@ -44,13 +49,45 @@ function Game() {
 
   const [showFair, setShowFair] = useState(false)
   const [cashFlash, setCashFlash] = useState(0)
+
+  // auto-cashout manual (toggle no BetControls)
   const [auto, setAuto] = useState(false)
   const [autoTarget, setAutoTarget] = useState(2.0)
-  const [stats, setStats] = useState<Stats>({ pnl: 0, rodadas: 0, melhorSaque: 0, totalApostado: 0 })
   const autoRef = useRef({ auto, autoTarget })
   autoRef.current = { auto, autoTarget }
 
-  // Wallet query
+  const [stats, setStats] = useState<Stats>({ pnl: 0, rodadas: 0, melhorSaque: 0, totalApostado: 0 })
+
+  // ── Auto-bet ──────────────────────────────────────────────────────────────
+  const [ab, setAb] = useState<AutoBetCfg>({
+    base: 1000,       // R$10,00 em centavos
+    target: 2.0,
+    strategy: 'fixed',
+    onLoss: 2.0,
+    rounds: 0,        // 0 = infinito
+    stopLoss: 0,
+    stopWin: 0,
+  })
+  const abRef = useRef(ab)
+  abRef.current = ab
+
+  // runtime fica em ref para não gerar re-renders no tick (só setAbTick faz render)
+  const abRun = useRef({ active: false, nextStake: 1000, pnl: 0, roundsLeft: Infinity })
+  const [, setAbTick] = useState(0)
+  const [showAutoBet, setShowAutoBet] = useState(false)
+
+  // refs lidas em efeitos sem causarem re-execução desnecessária
+  const saldoRef = useRef(0)
+  const playerBetRef = useRef<ReturnType<(typeof store.apostas)['find']> | null>(null)
+
+  // Sound
+  useEffect(() => { Sound.init() }, [])
+  useEffect(() => {
+    Sound.on = store.somAtivo
+    if (store.somAtivo) Sound.ensure()
+  }, [store.somAtivo])
+
+  // Wallet
   const { data: wallet, refetch: refetchWallet } = useQuery({
     queryKey: ['wallet'],
     queryFn: async () => {
@@ -62,8 +99,9 @@ function Game() {
   })
 
   const saldo = wallet ? Number(wallet.saldo) : 0
+  saldoRef.current = saldo
 
-  // Seed initial round state from REST
+  // Seed estado inicial via REST
   useEffect(() => {
     if (!token) return
     Promise.all([getCurrentRound(), getRoundHistory()])
@@ -76,36 +114,31 @@ function Game() {
   }, [token])
 
   const playerBet = store.apostas.find(a => a.jogadorId === playerJogadorId) || null
+  playerBetRef.current = playerBet
 
-  // Auto cashout trigger
-  useEffect(() => {
-    const { auto, autoTarget } = autoRef.current
-    if (!auto) return
-    if (!playerBet || playerBet.status !== 'PENDENTE') return
-    if (store.fase !== 'RODANDO') return
-    if (store.multiplicador >= autoTarget) {
-      handleCashOut()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.multiplicador])
-
-  const handleBet = useCallback(async (centavos: number) => {
+  // ── handleBet ─────────────────────────────────────────────────────────────
+  // autoCashoutOverride: se definido, usa esse valor em vez de autoRef.current
+  // quiet: suprime toast (usado pelo auto-bet para não poluir notificações)
+  const handleBet = useCallback(async (centavos: number, autoCashoutOverride?: number, quiet = false) => {
     try {
-      await placeBet(centavos, token)
+      const { auto: autoOn, autoTarget: at } = autoRef.current
+      const autoCashout = autoCashoutOverride !== undefined ? autoCashoutOverride : (autoOn ? at : undefined)
+      await placeBet(centavos, token, autoCashout)
       setStats(s => ({ ...s, pnl: s.pnl - centavos, totalApostado: s.totalApostado + centavos }))
-      store.pushToast('success', 'Aposta confirmada', `R$ ${centavosParaReais(centavos)} na rodada atual.`)
+      if (!quiet) {
+        const sufixo = autoCashout ? ` · auto-cashout em ${autoCashout.toFixed(2)}×` : ''
+        store.pushToast('success', 'Aposta confirmada', `R$ ${centavosParaReais(centavos)} na rodada atual.${sufixo}`)
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao apostar'
       store.pushToast('error', 'Aposta rejeitada', msg)
+      // auto-bet: aposta falhou — encerrar sessão para não entrar num loop
+      if (abRun.current.active) stopAutoBet('Aposta falhou.')
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, store])
 
-  const handleCancel = useCallback(async () => {
-    if (!playerBet) return
-    // No backend endpoint for cancel — remove from local state only (bet will be cancelled via RabbitMQ on debit.failed)
-    store.pushToast('info', 'Aguardando confirmação', 'O cancelamento depende da confirmação do débito.')
-  }, [playerBet, store])
-
+  // ── handleCashOut ─────────────────────────────────────────────────────────
   const handleCashOut = useCallback(async () => {
     try {
       const result = await cashout(token)
@@ -114,7 +147,7 @@ function Game() {
       setTimeout(() => setCashFlash(0), 1800)
       await refetchWallet()
       qc.invalidateQueries({ queryKey: ['wallet'] })
-      const mult = playerBet?.multiplicadorSaque || store.multiplicador
+      const mult = playerBetRef.current?.multiplicadorSaque ?? store.multiplicador
       setStats(s => ({
         ...s,
         pnl: s.pnl + pago,
@@ -126,18 +159,123 @@ function Game() {
       const msg = e instanceof Error ? e.message : 'Erro ao sacar'
       store.pushToast('error', 'Não foi possível sacar', msg)
     }
-  }, [token, playerBet, store, refetchWallet, qc])
+  }, [token, store, refetchWallet, qc])
 
-  // Track round completions for stats
+  const handleCancel = useCallback(async () => {
+    store.pushToast('info', 'Aguardando confirmação', 'O cancelamento depende da confirmação do débito.')
+  }, [store])
+
+  // ── Controlador auto-bet ──────────────────────────────────────────────────
+
+  const stopAutoBet = useCallback((motivo?: string) => {
+    if (!abRun.current.active) return
+    const pnl = abRun.current.pnl
+    abRun.current.active = false
+    setAbTick(x => x + 1)
+    store.pushToast(
+      motivo ? 'error' : 'info',
+      'Auto-bet encerrado',
+      `${motivo ? motivo + ' ' : ''}Resultado: ${pnl >= 0 ? '+' : '−'} R$ ${centavosParaReais(Math.abs(pnl))}.`,
+    )
+  }, [store])
+
+  const resolveAutoBet = useCallback((bet: { status: string; valorCentavos: number; pagamentoCentavos?: number; multiplicadorSaque?: number }) => {
+    const c = abRef.current
+    const r = abRun.current
+    const ganhou = bet.status === 'SACOU'
+    const roundPnl = ganhou ? (bet.pagamentoCentavos ?? 0) - bet.valorCentavos : -bet.valorCentavos
+    r.pnl += roundPnl
+
+    // calcular próxima aposta conforme estratégia
+    r.nextStake = ganhou
+      ? c.base
+      : c.strategy === 'martingale'
+        ? Math.min(Math.round(bet.valorCentavos * c.onLoss), 100_000)
+        : c.base
+
+    r.roundsLeft = r.roundsLeft === Infinity ? Infinity : r.roundsLeft - 1
+    setAbTick(x => x + 1)
+
+    // atualizar stats visuais para vitórias (perdas são atualizadas no useEffect de crash)
+    if (ganhou) {
+      const mult = bet.multiplicadorSaque ?? 1
+      setStats(s => ({
+        ...s,
+        pnl: s.pnl + (bet.pagamentoCentavos ?? 0),
+        melhorSaque: Math.max(s.melhorSaque, mult),
+        rodadas: s.rodadas + 1,
+      }))
+      refetchWallet()
+    }
+
+    // verificar condições de parada
+    if (r.roundsLeft <= 0) { stopAutoBet('Rodadas concluídas.'); return }
+    if (c.stopWin > 0 && r.pnl >= c.stopWin) { stopAutoBet('Stop-win atingido.'); return }
+    if (c.stopLoss > 0 && r.pnl <= -c.stopLoss) { stopAutoBet('Stop-loss atingido.'); return }
+    if (r.nextStake > saldoRef.current) { stopAutoBet('Saldo insuficiente.'); return }
+  }, [stopAutoBet, refetchWallet])
+
+  const startAutoBet = useCallback(() => {
+    const c = abRef.current
+    abRun.current = {
+      active: true,
+      nextStake: c.base,
+      pnl: 0,
+      roundsLeft: c.rounds > 0 ? c.rounds : Infinity,
+    }
+    setAbTick(x => x + 1)
+    store.pushToast(
+      'info',
+      'Auto-bet iniciado',
+      `${c.strategy === 'martingale' ? 'Martingale' : 'Valor fixo'} · R$ ${centavosParaReais(c.base)} @ ${c.target.toFixed(2)}×`,
+    )
+  }, [store])
+
+  const toggleAutoBet = useCallback(() => {
+    if (abRun.current.active) stopAutoBet()
+    else startAutoBet()
+  }, [startAutoBet, stopAutoBet])
+
+  // ── Watcher de fase ───────────────────────────────────────────────────────
   const prevFase = useRef(store.fase)
   useEffect(() => {
-    if (store.fase === 'CRASHADO' && prevFase.current === 'RODANDO') {
-      if (playerBet && playerBet.status === 'PERDEU') {
-        setStats(s => ({ ...s, rodadas: s.rodadas + 1 }))
-        store.pushToast('error', `Crash em ${store.pontoCrash?.toFixed(2)}×`, `Você perdeu R$ ${centavosParaReais(playerBet.valorCentavos)}.`)
+    const prev = prevFase.current
+    const curr = store.fase
+
+    // Nova fase de apostas: colocar aposta automática
+    if (curr === 'APOSTAS_ABERTAS' && prev !== 'APOSTAS_ABERTAS') {
+      if (abRun.current.active && !playerBetRef.current) {
+        const stake = abRun.current.nextStake
+        if (stake > saldoRef.current) {
+          stopAutoBet('Saldo insuficiente para a próxima aposta.')
+        } else {
+          // pequeno delay — garante que a fase de apostas já abriu no servidor
+          setTimeout(() => {
+            if (abRun.current.active) {
+              handleBet(stake, abRef.current.target, true)
+            }
+          }, 400)
+        }
       }
     }
-    prevFase.current = store.fase
+
+    // Crash: resolver resultado e registrar estatísticas
+    if (curr === 'CRASHADO' && prev === 'RODANDO') {
+      const pb = playerBetRef.current
+      if (pb) {
+        if (pb.status === 'PERDEU') {
+          setStats(s => ({ ...s, rodadas: s.rodadas + 1 }))
+          store.pushToast(
+            'error',
+            `Crash em ${store.pontoCrash?.toFixed(2)}×`,
+            `Você perdeu R$ ${centavosParaReais(pb.valorCentavos)}.`,
+          )
+        }
+        if (abRun.current.active) resolveAutoBet(pb)
+      }
+    }
+
+    prevFase.current = curr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.fase])
 
@@ -170,14 +308,44 @@ function Game() {
             autoTarget={autoTarget}
             onAuto={setAuto}
             onAutoTarget={setAutoTarget}
-            onBet={handleBet}
+            onBet={centavos => { handleBet(centavos) }}
             onCancel={handleCancel}
             onCashOut={handleCashOut}
           />
+
+          <div style={{ marginTop: 12 }}>
+            <button
+              className={`ab-show-btn ${showAutoBet ? 'on' : ''}`}
+              onClick={() => setShowAutoBet(v => !v)}
+            >
+              <span>Auto-bet</span>
+              <span className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
+                {abRun.current.active ? 'rodando' : showAutoBet ? '▲' : '▼'}
+              </span>
+            </button>
+          </div>
+
+          {showAutoBet && (
+            <div style={{ marginTop: 10 }}>
+              <AutoBetPanel
+                cfg={ab}
+                setCfg={setAb}
+                running={abRun.current.active}
+                runtime={abRun.current}
+                onToggle={toggleAutoBet}
+                saldo={saldo}
+              />
+            </div>
+          )}
         </div>
 
         <div className="side-col">
           <SessionStats stats={stats} />
+          <Leaderboard
+            playerJogadorId={playerJogadorId}
+            nomeUsuario={username}
+            sessionPnl={stats.pnl}
+          />
           <BetsList
             apostas={store.apostas}
             phase={store.fase}
