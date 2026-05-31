@@ -87,6 +87,10 @@
 |-------|--------|---------|
 | Auto-cashout | ✅ | Configurável no frontend com alvo de multiplicador |
 | Swagger/OpenAPI | ✅ | Acessível em `/games/api` e `/wallets/api` via Kong |
+| Efeitos sonoros | ✅ | `sound.ts` com Web Audio API; bet/cashout/crash; toggle persistido em localStorage via Topbar |
+| Leaderboard | ✅ | `GET /games/leaderboard?period=24h\|week` + `Leaderboard.tsx` com mocks e highlight do jogador atual |
+| CI pipeline (GitHub Actions) | ✅ | `.github/workflows/ci.yml` com jobs paralelos para wallets e games (unit tests) |
+| Rate limiting via Kong | ✅ | Plugin `rate-limiting` em `kong.yml`: 60 req/min na rota de apostas |
 
 ## Bônus Não Implementados
 
@@ -95,9 +99,5 @@
 | Outbox/Inbox transacional (at-least-once) | ❌ |
 | Observabilidade (OpenTelemetry + Grafana) | ❌ |
 | Seed determinística para E2E | ❌ |
-| Efeitos sonoros | ❌ |
-| Leaderboard | ❌ |
-| CI pipeline (GitHub Actions) | ❌ |
 | Playwright (E2E browser) | ❌ |
-| Rate limiting via Kong | ❌ |
 | Storybook | ❌ |

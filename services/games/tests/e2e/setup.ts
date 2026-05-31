@@ -1,4 +1,5 @@
-export const BASE_URL = 'http://localhost:8000/games';
+export const BASE_URL    = 'http://localhost:8000/games';
+export const WALLETS_URL = 'http://localhost:8000';
 const KEYCLOAK_URL = 'http://localhost:8080';
 
 export async function obterToken(): Promise<string> {
@@ -33,6 +34,32 @@ export function cabecalhosAuthJson(token: string): Record<string, string> {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
+}
+
+// Garante que o jogador tem carteira com R$ 1.000.000,00 (para testes de fluxo completo)
+export async function prepararCarteira(token: string): Promise<void> {
+  // cria a carteira se ainda não existir
+  await fetch(`${WALLETS_URL}/wallets`, {
+    method: 'POST',
+    headers: cabecalhosAuth(token),
+  });
+  // reseta o saldo para R$ 1.000.000,00 independente do estado anterior
+  const reset = await fetch(`${WALLETS_URL}/wallets/reset`, {
+    method: 'POST',
+    headers: cabecalhosAuth(token),
+  });
+  if (!reset.ok && reset.status !== 204) {
+    throw new Error(`Falha ao resetar carteira: ${reset.status}`);
+  }
+}
+
+export async function obterSaldo(token: string): Promise<bigint> {
+  const res = await fetch(`${WALLETS_URL}/wallets/me`, {
+    headers: cabecalhosAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET /wallets/me retornou ${res.status}`);
+  const { saldo } = (await res.json()) as { saldo: string };
+  return BigInt(saldo);
 }
 
 // Fica em loop até a rodada atingir o status esperado ou o timeout estourar

@@ -2,6 +2,7 @@ import { Controller, Get, Post, UseGuards, HttpCode, HttpStatus } from '@nestjs/
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateWalletUseCase } from '../../application/create-wallet.use-case';
 import { GetWalletUseCase } from '../../application/get-wallet.use-case';
+import { ResetWalletUseCase } from '../../application/reset-wallet.use-case';
 import { KeycloakJwtGuard } from '../../infrastructure/guards/keycloak-jwt.guard';
 import { UsuarioAtual } from '../../infrastructure/decorators/current-user.decorator';
 import type { UsuarioAutenticado } from '../../infrastructure/guards/keycloak-jwt.strategy';
@@ -14,6 +15,7 @@ export class WalletsController {
   constructor(
     private readonly criarCarteira: CreateWalletUseCase,
     private readonly buscarCarteira: GetWalletUseCase,
+    private readonly resetarCarteira: ResetWalletUseCase,
   ) {}
 
   @Get('health')
@@ -36,6 +38,16 @@ export class WalletsController {
       nomeUsuario: usuario.nomeUsuario,
     });
     return WalletResponseDto.deEntidade(carteira);
+  }
+
+  @Post('wallets/reset')
+  @UseGuards(KeycloakJwtGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resetar saldo para R$ 1.000.000,00 (início de sessão)' })
+  @ApiResponse({ status: 204, description: 'Saldo resetado com sucesso' })
+  async resetar(@UsuarioAtual() usuario: UsuarioAutenticado): Promise<void> {
+    await this.resetarCarteira.executar(usuario.jogadorId);
   }
 
   @Get('wallets/me')

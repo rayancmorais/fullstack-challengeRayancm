@@ -1,7 +1,7 @@
 'use client'
-import { useAuth } from 'react-oidc-context'
 import { centavosParaReais, initials } from '@/lib/utils'
 import { useGameStore } from '@/store/game'
+import { useAuthStore } from '@/store/auth'
 
 const IconRocket = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,13 +42,8 @@ interface Props {
 }
 
 export function Topbar({ username, saldo }: Props) {
-  const auth = useAuth()
+  const sair = useAuthStore(s => s.sair)
   const { somAtivo, toggleSom } = useGameStore()
-
-  const handleLogout = () => {
-    auth.removeUser()
-    auth.signoutRedirect({ post_logout_redirect_uri: window.location.origin })
-  }
 
   return (
     <header className="topbar">
@@ -76,7 +71,7 @@ export function Topbar({ username, saldo }: Props) {
         >
           {somAtivo ? <IconSomAtivo /> : <IconSomMudo />}
         </button>
-        <button className="logout-btn" title="Sair" onClick={handleLogout}>
+        <button className="logout-btn" title="Sair" onClick={sair}>
           <IconLogout />
         </button>
       </div>

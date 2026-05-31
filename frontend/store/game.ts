@@ -2,6 +2,7 @@
 import { create } from 'zustand'
 
 export type GamePhase = 'APOSTAS_ABERTAS' | 'RODANDO' | 'CRASHADO'
+export type FaseDoJogo = 'BETTING' | 'RUNNING' | 'CRASHED'
 
 export interface BetEntry {
   jogadorId: string
@@ -27,6 +28,9 @@ export interface Toast {
 
 interface GameStore {
   fase: GamePhase | null
+  faseDoJogo: FaseDoJogo | null      // alias EN para AnimacaoAsteroide
+  crescimento: number                 // constante da curva exponencial
+  sacadoEm: number | null            // multiplicador em que o jogador atual sacou
   multiplicador: number
   rodadaId: string | null
   hashSeedServidor: string | null
@@ -56,6 +60,9 @@ interface GameStore {
   }) => void
   setHistorico: (entries: HistoryEntry[]) => void
 
+  setSacadoEm: (mult: number | null) => void
+  conectar: (url: string) => void   // no-op — WS gerenciado por useGameSocket
+
   // Toast
   pushToast: (kind: Toast['kind'], title: string, desc?: string) => void
   dismissToast: (id: string) => void
@@ -67,6 +74,9 @@ interface GameStore {
 
 export const useGameStore = create<GameStore>((set) => ({
   fase: null,
+  faseDoJogo: null,
+  crescimento: 0.00006,
+  sacadoEm: null,
   multiplicador: 1.0,
   rodadaId: null,
   rodadaIniciadaEm: null,
@@ -80,6 +90,8 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setFaseApostas: (d) => set({
     fase: 'APOSTAS_ABERTAS',
+    faseDoJogo: 'BETTING',
+    sacadoEm: null,
     rodadaId: d.rodadaId,
     hashSeedServidor: d.hashSeedServidor,
     encerraEm: new Date(d.encerraEm),
@@ -92,6 +104,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setRodandoIniciada: (d) => set({
     fase: 'RODANDO',
+    faseDoJogo: 'RUNNING',
     rodadaIniciadaEm: d.iniciadoEm ? new Date(d.iniciadoEm).getTime() : Date.now(),
   }),
 
@@ -99,6 +112,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setCrash: (d) => set((s) => ({
     fase: 'CRASHADO',
+    faseDoJogo: 'CRASHED',
     pontoCrash: d.pontoCrash,
     seedServidor: d.seedServidor,
     multiplicador: d.pontoCrash,
@@ -127,6 +141,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setFromCurrentRound: (d) => set({
     fase: d.status,
+    faseDoJogo: d.status === 'RODANDO' ? 'RUNNING' : d.status === 'CRASHADO' ? 'CRASHED' : 'BETTING',
     rodadaId: d.id,
     hashSeedServidor: d.hashSeedServidor,
     seedServidor: d.seedServidor,
@@ -144,6 +159,9 @@ export const useGameStore = create<GameStore>((set) => ({
   }),
 
   setHistorico: (entries) => set({ historico: entries }),
+
+  setSacadoEm: (mult) => set({ sacadoEm: mult }),
+  conectar: () => {},  // WS já gerenciado por useGameSocket
 
   pushToast: (kind, title, desc) => {
     const id = Math.random().toString(36).slice(2)

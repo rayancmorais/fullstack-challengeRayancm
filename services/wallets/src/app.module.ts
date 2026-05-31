@@ -10,6 +10,7 @@ import { CreateWalletUseCase } from './application/create-wallet.use-case';
 import { GetWalletUseCase } from './application/get-wallet.use-case';
 import { DebitWalletUseCase, PUBLICADOR_MENSAGENS } from './application/debit-wallet.use-case';
 import { CreditWalletUseCase } from './application/credit-wallet.use-case';
+import { ResetWalletUseCase } from './application/reset-wallet.use-case';
 
 // Infraestrutura
 import { PrismaService } from './infrastructure/prisma.service';
@@ -53,6 +54,7 @@ import { WalletsController } from './presentation/controllers/wallets.controller
     GetWalletUseCase,
     DebitWalletUseCase,
     CreditWalletUseCase,
+    ResetWalletUseCase,
   ],
 })
 export class AppModule {}

@@ -60,4 +60,8 @@ export class Wallet {
     }
     this._saldo += valorCentavos;
   }
+
+  resetar(novoSaldo: bigint): void {
+    this._saldo = novoSaldo;
+  }
 }

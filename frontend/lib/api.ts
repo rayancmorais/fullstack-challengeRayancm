@@ -90,3 +90,6 @@ export interface LeaderboardEntry {
 
 export const getLeaderboard = (period: '24h' | 'week') =>
   request<LeaderboardEntry[]>(`/games/leaderboard?period=${period}`)
+
+export const resetarSaldo = (token: string) =>
+  request<void>('/wallets/reset', { method: 'POST', headers: authHeaders(token) })

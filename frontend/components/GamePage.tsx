@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAuth } from 'react-oidc-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/auth'
 import { useGameStore } from '@/store/game'
 import { useGameSocket } from '@/hooks/useGameSocket'
 import { useBots } from '@/hooks/useBots'
+import { useSonsDoJogo } from '@/hooks/useSonsDoJogo'
 import { Topbar } from './Topbar'
 import { Stage } from './Stage'
 import { HistoryRail } from './HistoryRail'
@@ -15,37 +16,27 @@ import { Toasts } from './Toasts'
 import { FairModal } from './FairModal'
 import { AutoBetPanel } from './AutoBetPanel'
 import { Leaderboard } from './Leaderboard'
-import { placeBet, cashout, getWallet, getCurrentRound, getRoundHistory, createWallet } from '@/lib/api'
+import { placeBet, cashout, getWallet, getCurrentRound, getRoundHistory, createWallet, resetarSaldo } from '@/lib/api'
 import { centavosParaReais } from '@/lib/utils'
 import { Sound } from '@/lib/sound'
 import type { Stats } from './SessionStats'
 import type { AutoBetCfg } from './AutoBetPanel'
 
 export function GamePage() {
-  const auth = useAuth()
-
-  useEffect(() => {
-    if (!auth.isLoading && !auth.isAuthenticated) {
-      auth.signinRedirect()
-    }
-  }, [auth.isLoading, auth.isAuthenticated, auth])
-
-  if (auth.isLoading) return <BootScreen label="Carregando sessão…" />
-  if (!auth.isAuthenticated) return <BootScreen label="Redirecionando para login…" />
-
+  // GuardaAuth garante autenticado=true antes de chegar aqui
   return <Game />
 }
 
 function Game() {
-  const auth = useAuth()
-  const qc = useQueryClient()
+  const { usuario, tokenValido, sair } = useAuthStore()
+  const qc    = useQueryClient()
   const store = useGameStore()
   useGameSocket()
   useBots()
+  useSonsDoJogo()
 
-  const token = auth.user?.access_token || ''
-  const playerJogadorId = auth.user?.profile.sub || ''
-  const username = (auth.user?.profile.preferred_username as string) || 'jogador'
+  const playerJogadorId = usuario?.sub      || ''
+  const username        = usuario?.username || 'jogador'
 
   const [showFair, setShowFair] = useState(false)
   const [cashFlash, setCashFlash] = useState(0)
@@ -91,30 +82,43 @@ function Game() {
   const { data: wallet, refetch: refetchWallet } = useQuery({
     queryKey: ['wallet'],
     queryFn: async () => {
-      try { return await getWallet(token) }
-      catch { return await createWallet(token) }
+      const tk = await tokenValido()
+      try { return await getWallet(tk) }
+      catch { return await createWallet(tk) }
     },
-    enabled: !!token,
+    enabled: !!usuario,
     refetchInterval: 8_000,
   })
 
   const saldo = wallet ? Number(wallet.saldo) : 0
   saldoRef.current = saldo
 
-  // Seed estado inicial via REST
+  // Seed estado inicial + reset de saldo ao entrar no jogo
   useEffect(() => {
-    if (!token) return
-    Promise.all([getCurrentRound(), getRoundHistory()])
-      .then(([round, history]) => {
+    if (!usuario) return
+    tokenValido().then(tk => {
+      Promise.all([
+        getCurrentRound(),
+        getRoundHistory(),
+        resetarSaldo(tk).catch(() => {}),  // falha silenciosa se carteira ainda não existe
+      ]).then(([round, history]) => {
         store.setFromCurrentRound(round)
         store.setHistorico(history.map(r => ({ rodadaId: r.id, pontoCrash: r.pontoCrash })))
-      })
-      .catch(() => {})
+      }).catch(() => {})
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [usuario])
 
   const playerBet = store.apostas.find(a => a.jogadorId === playerJogadorId) || null
   playerBetRef.current = playerBet
+
+  // sincroniza sacadoEm no store para AnimacaoAsteroide ler diretamente
+  useEffect(() => {
+    if (store.fase === 'RODANDO' && playerBet?.status === 'SACOU') {
+      store.setSacadoEm(playerBet.multiplicadorSaque ?? null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerBet?.status, playerBet?.multiplicadorSaque, store.fase])
 
   // ── handleBet ─────────────────────────────────────────────────────────────
   // autoCashoutOverride: se definido, usa esse valor em vez de autoRef.current
@@ -123,7 +127,8 @@ function Game() {
     try {
       const { auto: autoOn, autoTarget: at } = autoRef.current
       const autoCashout = autoCashoutOverride !== undefined ? autoCashoutOverride : (autoOn ? at : undefined)
-      await placeBet(centavos, token, autoCashout)
+      const tk = await tokenValido()
+      await placeBet(centavos, tk, autoCashout)
       setStats(s => ({ ...s, pnl: s.pnl - centavos, totalApostado: s.totalApostado + centavos }))
       if (!quiet) {
         const sufixo = autoCashout ? ` · auto-cashout em ${autoCashout.toFixed(2)}×` : ''
@@ -136,12 +141,13 @@ function Game() {
       if (abRun.current.active) stopAutoBet('Aposta falhou.')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, store])
+  }, [tokenValido, store])
 
   // ── handleCashOut ─────────────────────────────────────────────────────────
   const handleCashOut = useCallback(async () => {
     try {
-      const result = await cashout(token)
+      const tk = await tokenValido()
+      const result = await cashout(tk)
       const pago = Number(result.valorCentavos)
       setCashFlash(pago)
       setTimeout(() => setCashFlash(0), 1800)
@@ -159,7 +165,7 @@ function Game() {
       const msg = e instanceof Error ? e.message : 'Erro ao sacar'
       store.pushToast('error', 'Não foi possível sacar', msg)
     }
-  }, [token, store, refetchWallet, qc])
+  }, [tokenValido, store, refetchWallet, qc])
 
   const handleCancel = useCallback(async () => {
     store.pushToast('info', 'Aguardando confirmação', 'O cancelamento depende da confirmação do débito.')
@@ -294,6 +300,8 @@ function Game() {
             encerraEm={store.encerraEm}
             rodadaId={store.rodadaId}
             cashFlash={cashFlash}
+            pagamentoCentavos={playerBet?.pagamentoCentavos ?? 0}
+            apostaPerda={store.fase === 'CRASHADO' && playerBet?.status === 'PERDEU' ? playerBet.valorCentavos : 0}
             onOpenFair={() => setShowFair(true)}
           />
         </div>
