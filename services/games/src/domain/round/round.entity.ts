@@ -87,7 +87,7 @@ export class Round {
     return this._status === StatusRodada.CRASHADO ? this._seedServidor : undefined;
   }
 
-  registrarAposta(jogadorId: string, nomeUsuario: string, valorCentavos: bigint): Bet {
+  registrarAposta(jogadorId: string, nomeUsuario: string, valorCentavos: bigint, autoCashout?: number): Bet {
     if (this._status !== StatusRodada.APOSTAS_ABERTAS) {
       throw new ErroDominio('Apostas só podem ser registradas na fase de apostas');
     }
@@ -97,6 +97,9 @@ export class Round {
     if (this._apostas.some(a => a.jogadorId === jogadorId)) {
       throw new ErroDominio('Jogador já tem uma aposta nesta rodada');
     }
+    if (autoCashout !== undefined && autoCashout < 1.01) {
+      throw new ErroDominio('Auto-cashout mínimo é 1.01×');
+    }
 
     const aposta = Bet.criar({
       id: randomUUID(),
@@ -104,6 +107,7 @@ export class Round {
       jogadorId,
       nomeUsuario,
       valorCentavos,
+      autoCashout,
     });
 
     this._apostas.push(aposta);
