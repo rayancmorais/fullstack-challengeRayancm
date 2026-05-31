@@ -19,6 +19,7 @@ export class Bet {
     public readonly nomeUsuario: string,
     public readonly valorCentavos: bigint,
     public readonly apostadoEm: Date,
+    public readonly autoCashout?: number,
   ) {}
 
   static criar(params: {
@@ -27,6 +28,7 @@ export class Bet {
     jogadorId: string;
     nomeUsuario: string;
     valorCentavos: bigint;
+    autoCashout?: number;
   }): Bet {
     return new Bet(
       params.id,
@@ -35,6 +37,7 @@ export class Bet {
       params.nomeUsuario,
       params.valorCentavos,
       new Date(),
+      params.autoCashout,
     );
   }
 
@@ -46,6 +49,7 @@ export class Bet {
     nomeUsuario: string;
     valorCentavos: bigint;
     status: StatusAposta;
+    autoCashout?: number;
     multiplicadorSaque?: number;
     pagamentoCentavos?: bigint;
     apostadoEm: Date;
@@ -57,6 +61,7 @@ export class Bet {
       params.nomeUsuario,
       params.valorCentavos,
       params.apostadoEm,
+      params.autoCashout,
     );
     aposta._status = params.status;
     aposta._multiplicadorSaque = params.multiplicadorSaque;
