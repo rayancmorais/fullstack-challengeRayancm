@@ -1,10 +1,11 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Round } from '../domain/round/round.entity';
-import { Bet } from '../domain/bet/bet.entity';
+import { Bet, StatusAposta } from '../domain/bet/bet.entity';
 import { RoundRepository } from '../domain/round/round.repository';
 import { ErroDominio } from '../domain/erros';
 import { GameGateway } from '../presentation/gateways/game.gateway';
+import { type PublicadorMensagens, PUBLICADOR_MENSAGENS } from './publicador-mensagens';
 
 @Injectable()
 export class GameEngineService implements OnModuleInit {
@@ -15,6 +16,7 @@ export class GameEngineService implements OnModuleInit {
   constructor(
     private readonly roundRepository: RoundRepository,
     private readonly gateway: GameGateway,
+    @Inject(PUBLICADOR_MENSAGENS) private readonly publicador: PublicadorMensagens,
   ) {}
 
   onModuleInit() {
@@ -34,11 +36,12 @@ export class GameEngineService implements OnModuleInit {
     jogadorId: string,
     nomeUsuario: string,
     valorCentavos: bigint,
+    autoCashout?: number,
   ): Promise<Bet> {
     if (!this.rodadaAtual) {
       throw new ErroDominio('Nenhuma rodada ativa no momento');
     }
-    const aposta = this.rodadaAtual.registrarAposta(jogadorId, nomeUsuario, valorCentavos);
+    const aposta = this.rodadaAtual.registrarAposta(jogadorId, nomeUsuario, valorCentavos, autoCashout);
     await this.roundRepository.salvar(this.rodadaAtual);
 
     this.gateway.emitirApostaRegistrada({
@@ -51,6 +54,7 @@ export class GameEngineService implements OnModuleInit {
     return aposta;
   }
 
+  // Executar saque — usado tanto pelo endpoint manual quanto pelo auto-cashout do tick
   async sacar(jogadorId: string): Promise<Bet> {
     if (!this.rodadaAtual) {
       throw new ErroDominio('Nenhuma rodada ativa no momento');
@@ -63,6 +67,13 @@ export class GameEngineService implements OnModuleInit {
       jogadorId,
       pagamentoCentavos: aposta.pagamentoCentavos!.toString(),
       multiplicador: this.multiplicadorAtual,
+    });
+
+    // Publica crédito na carteira — mesmo fluxo do saque manual
+    await this.publicador.publicar('bet.credit.requested', {
+      apostaId: aposta.id,
+      jogadorId,
+      valorCentavos: Number(aposta.pagamentoCentavos!),
     });
 
     return aposta;
@@ -127,10 +138,33 @@ export class GameEngineService implements OnModuleInit {
 
     this.gateway.emitirTick({ multiplicador: this.multiplicadorAtual });
 
+    // Verificar apostas com auto-cashout atingido antes de checar crash
+    await this.verificarAutoCashouts();
+
     if (this.multiplicadorAtual >= this.rodadaAtual.pontoCrash) {
       clearInterval(this.tickInterval!);
       this.tickInterval = null;
       await this.encerrarRodada();
+    }
+  }
+
+  private async verificarAutoCashouts(): Promise<void> {
+    if (!this.rodadaAtual) return;
+
+    const apostasParaSacar = this.rodadaAtual.apostas.filter(
+      a =>
+        a.status === StatusAposta.PENDENTE &&
+        a.autoCashout !== undefined &&
+        this.multiplicadorAtual >= a.autoCashout,
+    );
+
+    for (const aposta of apostasParaSacar) {
+      try {
+        await this.sacar(aposta.jogadorId);
+      } catch (e) {
+        // Ignorar — pode ter crashado antes do saque ser processado
+        console.warn(`[autoCashout] Falha ao sacar automaticamente para ${aposta.jogadorId}:`, e);
+      }
     }
   }
 
