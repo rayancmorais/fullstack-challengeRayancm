@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Round, StatusRodada } from '../domain/round/round.entity';
-import { RoundRepository } from '../domain/round/round.repository';
+import { RoundRepository, EntradaLeaderboard } from '../domain/round/round.repository';
 import { Bet, StatusAposta } from '../domain/bet/bet.entity';
 import { PrismaService } from './prisma.service';
 
@@ -11,6 +11,7 @@ interface RegistroBancoDadosBet {
   nomeUsuario: string;
   valorCentavos: bigint;
   status: string;
+  autoCashout: number | null;
   multiplicadorSaque: number | null;
   pagamentoCentavos: bigint | null;
   apostadoEm: Date;
@@ -66,6 +67,7 @@ export class PrismaRoundRepository extends RoundRepository {
             nomeUsuario: aposta.nomeUsuario,
             valorCentavos: aposta.valorCentavos,
             status: aposta.status,
+            autoCashout: aposta.autoCashout ?? null,
             multiplicadorSaque: aposta.multiplicadorSaque ?? null,
             pagamentoCentavos: aposta.pagamentoCentavos ?? null,
             apostadoEm: aposta.apostadoEm,
@@ -114,11 +116,40 @@ export class PrismaRoundRepository extends RoundRepository {
         nomeUsuario: a.nomeUsuario,
         valorCentavos: a.valorCentavos,
         status: a.status as StatusAposta,
+        autoCashout: a.autoCashout ?? undefined,
         multiplicadorSaque: a.multiplicadorSaque ?? undefined,
         pagamentoCentavos: a.pagamentoCentavos ?? undefined,
         apostadoEm: a.apostadoEm,
       }),
     );
+  }
+
+  async listarLeaderboard(aPartirDe: Date): Promise<EntradaLeaderboard[]> {
+    const resultado = await this.prisma.$queryRaw<Array<{
+      jogadorId: string;
+      nomeUsuario: string;
+      pnl: bigint;
+      rodadas: bigint;
+    }>>`
+      SELECT
+        "jogadorId",
+        "nomeUsuario",
+        COALESCE(SUM("pagamentoCentavos"), 0) - SUM("valorCentavos") AS pnl,
+        COUNT(*) AS rodadas
+      FROM apostas
+      WHERE status IN ('SACADO', 'PERDIDO')
+        AND "apostadoEm" >= ${aPartirDe}
+      GROUP BY "jogadorId", "nomeUsuario"
+      ORDER BY pnl DESC
+      LIMIT 10
+    `;
+
+    return resultado.map(r => ({
+      jogadorId: r.jogadorId,
+      nomeUsuario: r.nomeUsuario,
+      pnl: BigInt(r.pnl),
+      rodadas: Number(r.rodadas),
+    }));
   }
 
   private mapearParaDominio(registro: RegistroBancoDadosRound): Round {
@@ -130,6 +161,7 @@ export class PrismaRoundRepository extends RoundRepository {
         nomeUsuario: a.nomeUsuario,
         valorCentavos: a.valorCentavos,
         status: a.status as StatusAposta,
+        autoCashout: a.autoCashout ?? undefined,
         multiplicadorSaque: a.multiplicadorSaque ?? undefined,
         pagamentoCentavos: a.pagamentoCentavos ?? undefined,
         apostadoEm: a.apostadoEm,
