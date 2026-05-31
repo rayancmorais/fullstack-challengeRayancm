@@ -45,6 +45,7 @@ export class ApostasController {
         jogadorId: usuario.jogadorId,
         nomeUsuario: usuario.nomeUsuario,
         valorCentavos: BigInt(corpo.valorCentavos),
+        autoCashout: corpo.autoCashout,
       });
       return ApostaResponseDto.deEntidade(aposta);
     } catch (erro) {
