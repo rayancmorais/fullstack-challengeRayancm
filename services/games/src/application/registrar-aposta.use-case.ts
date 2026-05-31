@@ -7,6 +7,7 @@ interface RegistrarApostaDto {
   jogadorId: string;
   nomeUsuario: string;
   valorCentavos: bigint;
+  autoCashout?: number;
 }
 
 @Injectable()
@@ -22,6 +23,7 @@ export class RegistrarApostaUseCase {
       dto.jogadorId,
       dto.nomeUsuario,
       dto.valorCentavos,
+      dto.autoCashout,
     );
 
     // Solicita o débito na carteira — assíncrono via RabbitMQ

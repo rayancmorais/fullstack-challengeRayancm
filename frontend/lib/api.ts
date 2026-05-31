@@ -62,11 +62,11 @@ export const getCurrentRound = () =>
 export const getRoundHistory = () =>
   request<HistoryRound[]>('/games/rounds/history?limit=20')
 
-export const placeBet = (valorCentavos: number, token: string) =>
+export const placeBet = (valorCentavos: number, token: string, autoCashout?: number) =>
   request<BetResult>('/games/bet', {
     method: 'POST',
     headers: authHeaders(token, true),
-    body: JSON.stringify({ valorCentavos }),
+    body: JSON.stringify({ valorCentavos, ...(autoCashout !== undefined ? { autoCashout } : {}) }),
   })
 
 export const cashout = (token: string) =>
@@ -79,3 +79,14 @@ export const getVerify = (roundId: string) =>
   request<{ hashSeedServidor: string; seedServidor?: string; pontoCrash?: number; id: string }>(
     `/games/rounds/${roundId}/verify`
   )
+
+export interface LeaderboardEntry {
+  posicao: number
+  jogadorId: string
+  nomeUsuario: string
+  pnl: string       // centavos como string (pode ser negativo)
+  rodadas: number
+}
+
+export const getLeaderboard = (period: '24h' | 'week') =>
+  request<LeaderboardEntry[]>(`/games/leaderboard?period=${period}`)

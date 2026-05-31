@@ -207,6 +207,13 @@ function FairModal({ snap, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3><Icon.shield style={{ width: 18, height: 18, verticalAlign: -3, marginRight: 6, color: "var(--accent)" }} />Provably Fair</h3>
         <p className="sub">O hash da seed é publicado <b>antes</b> da rodada. Após o crash, a seed é revelada — confira que <span className="mono" style={{ color: "var(--accent)" }}>SHA-256(server:client:nonce)</span> bate com o hash.</p>
+        <div className="formula-box">
+          <span className="cm">{"// curva do multiplicador no tempo"}</span><br/>
+          m(t) = e<sup>k · t</sup>  <span className="cm">· k ≈ 0.000098 / ms</span><br/>
+          <span className="cm">{"// crash point a partir do hash (house edge 1%)"}</span><br/>
+          h = int(hash[0:13]) ; e = 2<sup>52</sup><br/>
+          crash = ⌊(99·e − h) / (e − h)⌋ / 100
+        </div>
         <div className="fair-field"><div className="k">Hash da seed (commit) — rodada #{snap.roundId}</div><div className="val accent">{cur.hash}</div></div>
         {revealed ? (
           <>

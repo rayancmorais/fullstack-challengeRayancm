@@ -1,0 +1,62 @@
+# Ignorar arquivos de histórico e estudos para poupar tokens
+
+DIARY.md
+COMMITS.md
+CHANGELOG.md
+BONUS_STUDY.md
+ROADMAP.md
+
+# Ignorar pastas de build e dependências
+
+.next/
+dist/
+node_modules/
+
+# ---- ARQUIVOS DE TRAVA DE DEPENDÊNCIAS ----
+
+# O Claude não precisa ler milhares de linhas de hashes de pacotes
+
+bun.lock
+bun.lockb
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ---- INFRAESTRUTURA E DOCKER LOCAL ----
+
+# Evita que ele fique lendo os dados salvos do banco local ou estados do docker
+
+.docker/
+docker/data/
+postgres_data/
+.kong_data/
+
+# ---- VARIÁVEIS DE AMBIENTE REAIS ----
+
+# Segurança e economia: o Claude deve usar apenas o .env.example como base, nunca o seu .env real
+
+.env
+.env.local
+.env.production
+.env.development
+
+# ---- CACHES E LOGS DE FERRAMENTAS ----
+
+# Logs de erro e caches de ferramentas de lint/testes que mudam toda hora
+
+.eslintcache
+.turbo/
+.prettiercache
+.nyc_output/
+coverage/
+_.log
+npm-debug.log_
+yarn-error.log*
+bun-debug.log*
+
+# ---- ARQUIVOS DO SISTEMA OPERACIONAL ----
+
+# Arquivos ocultos que o macOS cria automaticamente nas pastas
+
+.DS_Store
+Thumbs.db

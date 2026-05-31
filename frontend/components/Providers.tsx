@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 
 const KEYCLOAK_URL = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080/realms/crash-game'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -14,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const oidcConfig = {
     authority: KEYCLOAK_URL,
     client_id: 'crash-game-client',
-    redirect_uri: `${APP_URL}/callback`,
+    redirect_uri: typeof window !== 'undefined'
+      ? `${window.location.origin}/callback`
+      : 'http://localhost:3001/callback',
     scope: 'openid profile email',
     onSigninCallback: () => {
       window.history.replaceState({}, document.title, '/')

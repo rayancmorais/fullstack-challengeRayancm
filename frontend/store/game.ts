@@ -37,9 +37,11 @@ interface GameStore {
   historico: HistoryEntry[]
   toasts: Toast[]
 
+  rodadaIniciadaEm: number | null   // timestamp ms do evento rodada:iniciada
+
   // WS actions
   setFaseApostas: (d: { rodadaId: string; hashSeedServidor: string; encerraEm: string }) => void
-  setRodandoIniciada: (d: { rodadaId: string }) => void
+  setRodandoIniciada: (d: { rodadaId: string; iniciadoEm?: string }) => void
   setTick: (multiplicador: number) => void
   setCrash: (d: { rodadaId: string; pontoCrash: number; seedServidor: string }) => void
   addAposta: (d: { rodadaId: string; jogadorId: string; nomeUsuario: string; valorCentavos: string }) => void
@@ -57,12 +59,17 @@ interface GameStore {
   // Toast
   pushToast: (kind: Toast['kind'], title: string, desc?: string) => void
   dismissToast: (id: string) => void
+
+  // Som
+  somAtivo: boolean
+  toggleSom: () => void
 }
 
 export const useGameStore = create<GameStore>((set) => ({
   fase: null,
   multiplicador: 1.0,
   rodadaId: null,
+  rodadaIniciadaEm: null,
   hashSeedServidor: null,
   seedServidor: null,
   pontoCrash: null,
@@ -80,9 +87,13 @@ export const useGameStore = create<GameStore>((set) => ({
     apostas: [],
     seedServidor: null,
     pontoCrash: null,
+    rodadaIniciadaEm: null,
   }),
 
-  setRodandoIniciada: () => set({ fase: 'RODANDO' }),
+  setRodandoIniciada: (d) => set({
+    fase: 'RODANDO',
+    rodadaIniciadaEm: d.iniciadoEm ? new Date(d.iniciadoEm).getTime() : Date.now(),
+  }),
 
   setTick: (multiplicador) => set({ multiplicador }),
 
@@ -147,4 +158,11 @@ export const useGameStore = create<GameStore>((set) => ({
     set((s) => ({ toasts: s.toasts.map(t => t.id === id ? { ...t, out: true } : t) }))
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })), 320)
   },
+
+  somAtivo: typeof window !== 'undefined' ? localStorage.getItem('som') !== 'false' : true,
+  toggleSom: () => set((s) => {
+    const novo = !s.somAtivo
+    if (typeof window !== 'undefined') localStorage.setItem('som', String(novo))
+    return { somAtivo: novo }
+  }),
 }))

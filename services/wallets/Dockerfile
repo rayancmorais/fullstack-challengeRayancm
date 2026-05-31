@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 4002
 
-CMD sh -c "bunx prisma migrate deploy && bun run src/main.ts"
+CMD sh -c "bunx prisma migrate deploy && bunx prisma db seed && bun run src/main.ts"

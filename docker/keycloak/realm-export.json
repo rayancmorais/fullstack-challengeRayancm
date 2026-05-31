@@ -16,11 +16,11 @@
       "directAccessGrantsEnabled": true,
       "protocol": "openid-connect",
       "redirectUris": [
-        "http://localhost:3000/*",
+        "http://localhost:3001/*",
         "http://localhost:5173/*"
       ],
       "webOrigins": [
-        "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:5173"
       ],
       "attributes": {
@@ -30,6 +30,7 @@
   ],
   "users": [
     {
+      "id": "c785afb7-b513-40e4-88df-b7b840400515",
       "username": "player",
       "email": "player@crash-game.dev",
       "firstName": "Test",

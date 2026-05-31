@@ -3,7 +3,38 @@ _format_version: "3.0"
 services:
   - name: games-service
     url: http://games:4001
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "http://localhost:3001"
+            - "http://localhost:3000"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Authorization
+            - Content-Type
+          exposed_headers:
+            - Authorization
+          credentials: true
+          max_age: 3600
     routes:
+      - name: games-post-routes
+        paths:
+          - /games
+        methods:
+          - POST
+        strip_path: true
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+              error_message: "Muitas apostas — aguarde um momento."
       - name: games-routes
         paths:
           - /games
@@ -11,8 +42,27 @@ services:
 
   - name: wallets-service
     url: http://wallets:4002
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "http://localhost:3001"
+            - "http://localhost:3000"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Authorization
+            - Content-Type
+          exposed_headers:
+            - Authorization
+          credentials: true
+          max_age: 3600
     routes:
       - name: wallets-routes
         paths:
           - /wallets
-        strip_path: true
+        strip_path: false

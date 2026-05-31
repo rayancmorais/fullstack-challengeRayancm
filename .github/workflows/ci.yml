@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Testes unitários — wallets ──────────────────────────────────────────────
+  test-wallets:
+    name: "Testes · wallets"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/wallets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-wallets-${{ runner.os }}-${{ hashFiles('services/wallets/bun.lock') }}
+          restore-keys: |
+            bun-wallets-${{ runner.os }}-
+
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Testes unitários
+        run: bun test tests/unit
+
+  # ── Testes unitários — games ────────────────────────────────────────────────
+  test-games:
+    name: "Testes · games"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/games
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-games-${{ runner.os }}-${{ hashFiles('services/games/bun.lock') }}
+          restore-keys: |
+            bun-games-${{ runner.os }}-
+
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Testes unitários
+        run: bun test tests/unit
+
+  # ── Build check — Dockerfiles ───────────────────────────────────────────────
+  build-check:
+    name: "Build · Docker images"
+    runs-on: ubuntu-latest
+    needs: [test-wallets, test-games]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validar docker-compose.yml
+        run: docker compose config --quiet
+
+      - name: Build images (sem subir containers)
+        run: docker compose build

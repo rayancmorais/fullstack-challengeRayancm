@@ -169,10 +169,14 @@ Raios / motion
 - `styles.css` — design tokens + estilos da v1 (NovaX).
 - `engine.js` — lógica de domínio (fases, curva, provably-fair, validações). Espelho do Game Service.
 - `components.jsx` — gráfico, stage, countdown, history rail.
-- `components2.jsx` — controles de aposta, lista, stats, toasts, modal de fairness.
-- `app.jsx` — wiring (auth, assinatura do motor, saldo, toasts, tema dinâmico).
+- `components2.jsx` — controles de aposta, lista, stats, toasts, modal de fairness (com **fórmula da curva**).
+- `bonus.jsx` — **Auto-bet** (Martingale/fixo + stop-loss/stop-win) e **Leaderboard** (24h/semana).
+- `app.jsx` — wiring (auth, assinatura do motor, saldo, toasts, tema dinâmico, controlador de auto-bet).
 - `tweaks-panel.jsx` — painel de ajustes ao vivo (tema/timer/som) — só para o protótipo.
 - `terminal.css` — tokens/estilos da direção alternativa "Crash Terminal".
+- **`BONUS_SPECS.md`** — especificação dos recursos bônus (auto-cashout, auto-bet,
+  leaderboard, sons, fórmula + **Outbox/Inbox, observabilidade, seed E2E, CI, Playwright,
+  rate limiting, Storybook**) e ordem de implementação sugerida para os 5 dias.
 
 ### Como rodar o protótipo
 Abra `login.html` em um servidor estático (os `.jsx` são transpilados no navegador via Babel).

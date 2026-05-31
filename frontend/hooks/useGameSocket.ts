@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useGameStore } from '@/store/game'
+import { Sound } from '@/lib/sound'
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4001'
 
@@ -22,9 +23,9 @@ export function useGameSocket() {
     socket.on('rodada:apostas', store.setFaseApostas)
     socket.on('rodada:iniciada', store.setRodandoIniciada)
     socket.on('rodada:tick', ({ multiplicador }: { multiplicador: number }) => store.setTick(multiplicador))
-    socket.on('rodada:crash', store.setCrash)
-    socket.on('aposta:registrada', store.addAposta)
-    socket.on('aposta:saque', store.setSaque)
+    socket.on('rodada:crash', (d) => { store.setCrash(d); Sound.crash() })
+    socket.on('aposta:registrada', (d) => { store.addAposta(d); Sound.bet() })
+    socket.on('aposta:saque', (d) => { store.setSaque(d); Sound.cashout() })
     socket.on('aposta:cancelada', ({ jogadorId }: { jogadorId: string }) => store.cancelarAposta(jogadorId))
 
     socketRef.current = socket

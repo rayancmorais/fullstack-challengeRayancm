@@ -25,9 +25,13 @@ function applyTheme(hex) {
 /* ---------- tiny sound engine (optional, off by default) ---------- */
 const Sound = {
   ctx: null, on: false,
-  ensure() { if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } },
+  ensure() {
+    if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (this.ctx && this.ctx.state === "suspended") { this.ctx.resume().catch(() => {}); }
+  },
   blip(freq, dur, type = "sine", vol = 0.06) {
     if (!this.on || !this.ctx) return;
+    if (this.ctx.state === "suspended") { this.ctx.resume().catch(() => {}); }
     try {
       const o = this.ctx.createOscillator(), g = this.ctx.createGain();
       o.type = type; o.frequency.value = freq; o.connect(g); g.connect(this.ctx.destination);
@@ -58,7 +62,17 @@ function App() {
 
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { applyTheme(t.themeAccent); }, [t.themeAccent]);
-  useEffect(() => { Sound.on = !!t.sound; if (t.sound) Sound.ensure(); }, [t.sound]);
+  useEffect(() => {
+    Sound.on = !!t.sound;
+    if (t.sound) { Sound.ensure(); Sound.blip(880, 0.1, "sine", 0.06); } // confirmation chime
+  }, [t.sound]);
+  // unlock WebAudio on the first user gesture (browsers require it)
+  useEffect(() => {
+    const unlock = () => { if (Sound.on) Sound.ensure(); };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+  }, []);
 
   const engineRef = useRef(null);
   const [snap, setSnap] = useState(null);
@@ -76,6 +90,12 @@ function App() {
   autoRef.current = { auto, autoTarget };
 
   const [stats, setStats] = useState({ pnl: 0, rounds: 0, best: 0, wagered: 0 });
+
+  /* auto-bet config + runtime */
+  const [ab, setAb] = useState({ on: false, base: 10, target: 2.0, strategy: "fixed", onLoss: 2.0, rounds: 0, stopLoss: 0, stopWin: 0 });
+  const abRun = useRef({ active: false, nextStake: 10, pnl: 0, roundsLeft: Infinity });
+  const [abTick, setAbTick] = useState(0); // force re-render of runtime line
+  const abRef = useRef(ab); abRef.current = ab;
 
   /* persist balance */
   useEffect(() => {
@@ -99,10 +119,21 @@ function App() {
     engineRef.current = eng;
     const unsub = eng.subscribe((evt) => {
       setSnap(evt.state);
-      // player auto-cashout
-      if (evt.type === "tick" && autoRef.current.auto) {
+      // auto-place bet when a new betting phase opens (auto-bet)
+      if (evt.type === "betting_start" && abRun.current.active) {
+        const stake = +abRun.current.nextStake.toFixed(2);
+        if (stake > balRef.current) {
+          stopAutoBet("Saldo insuficiente para a próxima aposta.");
+        } else if (!eng.getPlayerBet()) {
+          handleBet(stake, true);
+        }
+      }
+      // auto-cashout (manual toggle OR auto-bet uses the configured target)
+      if (evt.type === "tick") {
+        const useAuto = autoRef.current.auto || abRun.current.active;
+        const tgt = abRun.current.active ? abRef.current.target : autoRef.current.autoTarget;
         const pb = eng.getPlayerBet();
-        if (pb && pb.status === "placed" && eng.multiplier >= autoRef.current.autoTarget) {
+        if (useAuto && pb && pb.status === "placed" && eng.multiplier >= tgt) {
           handleCashOut(true);
         }
       }
@@ -114,6 +145,8 @@ function App() {
             Sound.crash();
             pushToast("error", `Crash em ${evt.crashPoint.toFixed(2)}×`, `Você perdeu R$ ${fmt(pb.amount)} nesta rodada.`);
           }
+          // resolve auto-bet strategy for next round
+          if (abRun.current.active) resolveAutoBet(pb);
         }
       }
     });
@@ -128,15 +161,15 @@ function App() {
   const potential = playerBet && snap ? playerBet.amount * snap.multiplier : 0;
 
   /* actions */
-  const handleBet = useCallback((amount) => {
+  const handleBet = useCallback((amount, quiet) => {
     const eng = engineRef.current;
-    if (amount > balRef.current) { pushToast("error", "Saldo insuficiente", `Você tem R$ ${fmt(balRef.current)} disponível.`); return; }
+    if (amount > balRef.current) { if (!quiet) pushToast("error", "Saldo insuficiente", `Você tem R$ ${fmt(balRef.current)} disponível.`); return; }
     const res = eng.placeBet(username, amount);
-    if (!res.ok) { pushToast("error", "Aposta rejeitada", res.error); return; }
+    if (!res.ok) { if (!quiet) pushToast("error", "Aposta rejeitada", res.error); return; }
     setBalance((b) => b - amount);
     setStats((s) => ({ ...s, pnl: s.pnl - amount, wagered: s.wagered + amount }));
     Sound.bet();
-    pushToast("success", "Aposta confirmada", `R$ ${fmt(amount)} na rodada #${eng.roundId}.`);
+    if (!quiet) pushToast("success", "Aposta confirmada", `R$ ${fmt(amount)} na rodada #${eng.roundId}.`);
   }, [username]);
 
   const handleCancel = useCallback(() => {
@@ -163,6 +196,47 @@ function App() {
     pushToast("gold", `Sacou em ${b.cashoutAt.toFixed(2)}×${isAuto ? " (auto)" : ""}`, `+ R$ ${fmt(b.payout)} creditado.`);
   }, []);
 
+  /* ---------- auto-bet controller ---------- */
+  const startAutoBet = useCallback(() => {
+    const c = abRef.current;
+    abRun.current = { active: true, nextStake: c.base, pnl: 0, roundsLeft: c.rounds > 0 ? c.rounds : Infinity };
+    setAb((p) => ({ ...p, on: true }));
+    setAbTick((x) => x + 1);
+    pushToast("info", "Auto-bet iniciado", `${c.strategy === "martingale" ? "Martingale" : "Valor fixo"} · base R$ ${fmt(c.base)} @ ${c.target.toFixed(2)}×`);
+  }, []);
+
+  const stopAutoBet = useCallback((reason) => {
+    if (!abRun.current.active) return;
+    const pnl = abRun.current.pnl;
+    abRun.current.active = false;
+    setAb((p) => ({ ...p, on: false }));
+    setAbTick((x) => x + 1);
+    pushToast(reason ? "error" : "info", "Auto-bet encerrado", `${reason ? reason + " " : ""}Resultado: ${pnl >= 0 ? "+" : "−"} R$ ${fmt(Math.abs(pnl))}.`);
+  }, []);
+
+  const resolveAutoBet = useCallback((pb) => {
+    const c = abRef.current;
+    const r = abRun.current;
+    const won = pb.status === "won";
+    const roundPnl = won ? pb.payout - pb.amount : -pb.amount;
+    r.pnl += roundPnl;
+    // next stake
+    if (won) r.nextStake = c.base;
+    else r.nextStake = c.strategy === "martingale" ? +(pb.amount * c.onLoss).toFixed(2) : c.base;
+    r.roundsLeft = r.roundsLeft === Infinity ? Infinity : r.roundsLeft - 1;
+    setAbTick((x) => x + 1);
+    // stop conditions
+    if (r.roundsLeft <= 0) return stopAutoBet("Rodadas concluídas.");
+    if (c.stopWin > 0 && r.pnl >= c.stopWin) return stopAutoBet("Stop-win atingido. 🎉");
+    if (c.stopLoss > 0 && r.pnl <= -c.stopLoss) return stopAutoBet("Stop-loss atingido.");
+    if (r.nextStake > balRef.current) return stopAutoBet("Saldo insuficiente.");
+  }, []);
+
+  const toggleAutoBet = useCallback(() => {
+    if (abRun.current.active) stopAutoBet();
+    else startAutoBet();
+  }, []);
+
   if (!snap) return <BootScreen />;
 
   return (
@@ -182,10 +256,17 @@ function App() {
             onBet={handleBet} onCancel={handleCancel} onCashOut={() => handleCashOut(false)}
             auto={auto} setAuto={setAuto} autoTarget={autoTarget} setAutoTarget={setAutoTarget}
           />
+          {t.showAutoBet && (
+            <div style={{ marginTop: 16 }}>
+              <AutoBetPanel cfg={ab} setCfg={setAb} running={abRun.current.active} runtime={abRun.current}
+                onToggle={toggleAutoBet} balance={balance} minBet={snap.cfg.minBet} maxBet={snap.cfg.maxBet} />
+            </div>
+          )}
         </div>
 
         <div className="side-col">
           {t.showStats && <SessionStats stats={stats} />}
+          {t.showLeaderboard && <Leaderboard username={username} sessionPnl={stats.pnl} />}
           <BetsList bets={snap.bets} phase={snap.phase} />
         </div>
       </div>
@@ -202,6 +283,8 @@ function App() {
         <TweakSlider label="Janela de apostas" value={t.bettingSeconds} min={5} max={20} step={1} unit="s"
           onChange={(v) => setTweak("bettingSeconds", v)} />
         <TweakToggle label="Painel de sessão" value={t.showStats} onChange={(v) => setTweak("showStats", v)} />
+        <TweakToggle label="Auto-bet (Martingale)" value={t.showAutoBet} onChange={(v) => setTweak("showAutoBet", v)} />
+        <TweakToggle label="Leaderboard" value={t.showLeaderboard} onChange={(v) => setTweak("showLeaderboard", v)} />
         <TweakToggle label="Efeitos sonoros" value={t.sound} onChange={(v) => setTweak("sound", v)} />
       </TweaksPanel>
     </div>
@@ -253,6 +336,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "themeAccent": "#2bf5b0",
   "bettingSeconds": 10,
   "showStats": true,
+  "showAutoBet": true,
+  "showLeaderboard": true,
   "sound": false
 }/*EDITMODE-END*/;
 
