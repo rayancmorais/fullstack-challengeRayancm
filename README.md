@@ -68,6 +68,18 @@ Aguarda todos os healthchecks passarem (~30–60s). O Keycloak leva um pouco mai
 
 O frontend abre em `http://localhost:3001`. O login redireciona para o Keycloak automaticamente.
 
+### Autenticação — Nota sobre o flow de login
+
+O fluxo principal implementado é **Authorization Code + PKCE (S256)**, conforme especificado pelo desafio. O frontend possui também uma função `loginDireto()` que usa o **Resource Owner Password Credentials (ROPC)**, utilizada para facilitar testes locais (preenche usuário/senha automaticamente e autentica sem redirecionar ao Keycloak).
+
+> **Limitação conhecida:** ROPC é deprecated no OAuth 2.1 e não deve ser usado em produção (expõe credenciais ao cliente, não é compatível com MFA). Em produção, o flow seria substituído integralmente pelo Authorization Code + PKCE — o código para isso já existe em `lib/oidc.ts` (`iniciarLogin`, `trocarCodePorToken`, `renovarToken`).
+
+### Bots e jogadores simulados
+
+Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend** para fins de demonstração visual — criam apostas fictícias com timings e valores aleatórios, replicando a experiência de uma partida com múltiplos jogadores.
+
+> A lógica real do jogo roda **inteiramente no servidor** — apostas e saques reais são validados pelo Game Service (DDD + RabbitMQ), e o saldo é debitado/creditado pelo Wallet Service. Os bots não interagem com o backend e não afetam o resultado de nenhuma rodada.
+
 ---
 
 ## Endpoints

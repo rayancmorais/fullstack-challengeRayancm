@@ -37,49 +37,54 @@ export class PrismaRoundRepository extends RoundRepository {
   async salvar(rodada: Round): Promise<void> {
     const dados = rodada.dadosParaPersistencia();
 
-    // Salva a rodada e todas as apostas em uma transação
     await this.prisma.$transaction(async (tx) => {
       await tx.round.upsert({
         where: { id: dados.id },
         create: {
-          id: dados.id,
-          status: dados.status,
+          id:               dados.id,
+          status:           dados.status,
           hashSeedServidor: dados.hashSeedServidor,
-          seedServidor: dados.seedServidor,
-          pontoCrash: dados.pontoCrash,
-          iniciadoEm: dados.iniciadoEm,
-          crashadoEm: dados.crashadoEm ?? null,
+          seedServidor:     dados.seedServidor,
+          pontoCrash:       dados.pontoCrash,
+          iniciadoEm:       dados.iniciadoEm,
+          crashadoEm:       dados.crashadoEm ?? null,
         },
         update: {
-          status: dados.status,
+          status:     dados.status,
           crashadoEm: dados.crashadoEm ?? null,
         },
       });
 
-      // Upsert de cada aposta da rodada
-      for (const aposta of rodada.apostas) {
-        await tx.bet.upsert({
-          where: { id: aposta.id },
-          create: {
-            id: aposta.id,
-            rodadaId: aposta.rodadaId,
-            jogadorId: aposta.jogadorId,
-            nomeUsuario: aposta.nomeUsuario,
-            valorCentavos: aposta.valorCentavos,
-            status: aposta.status,
-            autoCashout: aposta.autoCashout ?? null,
-            multiplicadorSaque: aposta.multiplicadorSaque ?? null,
-            pagamentoCentavos: aposta.pagamentoCentavos ?? null,
-            apostadoEm: aposta.apostadoEm,
-          },
-          update: {
-            status: aposta.status,
-            multiplicadorSaque: aposta.multiplicadorSaque ?? null,
-            pagamentoCentavos: aposta.pagamentoCentavos ?? null,
-          },
-        });
-      }
+      await this.salvarApostas(tx, rodada.apostas);
     });
+  }
+
+  private async salvarApostas(
+    tx: Parameters<Parameters<typeof this.prisma.$transaction>[0]>[0],
+    apostas: ReadonlyArray<Bet>,
+  ): Promise<void> {
+    for (const aposta of apostas) {
+      await tx.bet.upsert({
+        where:  { id: aposta.id },
+        create: {
+          id:                 aposta.id,
+          rodadaId:           aposta.rodadaId,
+          jogadorId:          aposta.jogadorId,
+          nomeUsuario:        aposta.nomeUsuario,
+          valorCentavos:      aposta.valorCentavos,
+          status:             aposta.status,
+          autoCashout:        aposta.autoCashout ?? null,
+          multiplicadorSaque: aposta.multiplicadorSaque ?? null,
+          pagamentoCentavos:  aposta.pagamentoCentavos ?? null,
+          apostadoEm:         aposta.apostadoEm,
+        },
+        update: {
+          status:             aposta.status,
+          multiplicadorSaque: aposta.multiplicadorSaque ?? null,
+          pagamentoCentavos:  aposta.pagamentoCentavos ?? null,
+        },
+      });
+    }
   }
 
   async buscarPorId(id: string): Promise<Round | null> {

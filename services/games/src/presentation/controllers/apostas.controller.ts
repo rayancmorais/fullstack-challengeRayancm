@@ -40,20 +40,15 @@ export class ApostasController {
     @UsuarioAtual() usuario: UsuarioAutenticado,
     @Body() corpo: RegistrarApostaDto,
   ): Promise<ApostaResponseDto> {
-    try {
-      const aposta = await this.registrarAposta.executar({
-        jogadorId: usuario.jogadorId,
-        nomeUsuario: usuario.nomeUsuario,
+    const aposta = await this.executarComTratamento(() =>
+      this.registrarAposta.executar({
+        jogadorId:     usuario.jogadorId,
+        nomeUsuario:   usuario.nomeUsuario,
         valorCentavos: BigInt(corpo.valorCentavos),
-        autoCashout: corpo.autoCashout,
-      });
-      return ApostaResponseDto.deEntidade(aposta);
-    } catch (erro) {
-      if (erro instanceof ErroDominio) {
-        throw new UnprocessableEntityException(erro.message);
-      }
-      throw erro;
-    }
+        autoCashout:   corpo.autoCashout,
+      }),
+    );
+    return ApostaResponseDto.deEntidade(aposta);
   }
 
   @Post('bet/cashout')
@@ -63,9 +58,15 @@ export class ApostasController {
   @ApiResponse({ status: 200, type: ApostaResponseDto })
   @ApiResponse({ status: 422, description: 'Rodada não está em andamento ou jogador não tem aposta ativa' })
   async sacarAposta(@UsuarioAtual() usuario: UsuarioAutenticado): Promise<ApostaResponseDto> {
+    const aposta = await this.executarComTratamento(() =>
+      this.sacar.executar(usuario.jogadorId),
+    );
+    return ApostaResponseDto.deEntidade(aposta);
+  }
+
+  private async executarComTratamento<T>(acao: () => Promise<T>): Promise<T> {
     try {
-      const aposta = await this.sacar.executar(usuario.jogadorId);
-      return ApostaResponseDto.deEntidade(aposta);
+      return await acao();
     } catch (erro) {
       if (erro instanceof ErroDominio) {
         throw new UnprocessableEntityException(erro.message);

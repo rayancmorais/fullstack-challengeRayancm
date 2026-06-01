@@ -7,7 +7,16 @@ import {
 import { Server, Socket } from 'socket.io';
 import { IPublicadorEventos } from '../../application/publicador-eventos.interface';
 
-@WebSocketGateway({ cors: { origin: '*' }, namespace: '/jogo' })
+@WebSocketGateway({
+  cors: {
+    origin: [
+      'http://localhost:3000',   // Next.js dev
+      'http://localhost:3001',   // Next.js Docker
+    ],
+    credentials: true,
+  },
+  namespace: '/jogo',
+})
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, IPublicadorEventos {
   @WebSocketServer()
   servidor: Server;

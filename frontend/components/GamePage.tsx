@@ -7,6 +7,7 @@ import { useGameSocket } from '@/hooks/useGameSocket'
 import { useBots } from '@/hooks/useBots'
 import { useSonsDoJogo } from '@/hooks/useSonsDoJogo'
 import { useGameStats } from '@/hooks/useGameStats'
+import { useAutoBetController } from '@/hooks/useAutoBetController'
 import { Topbar } from './Topbar'
 import { Stage } from './Stage'
 import { HistoryRail } from './HistoryRail'
@@ -21,7 +22,6 @@ import { placeBet, cashout, getWallet, getCurrentRound, getRoundHistory, createW
 import { centavosParaReais } from '@/lib/utils'
 import { Sound } from '@/lib/sound'
 import type { Stats } from '@/hooks/useGameStats'
-import type { AutoBetCfg } from './AutoBetPanel'
 
 export function GamePage() {
   // GuardaAuth garante autenticado=true antes de chegar aqui
@@ -49,23 +49,6 @@ function Game() {
   autoRef.current = { auto, autoTarget }
 
   const { stats, registrarAposta: regAposta, registrarSaque: regSaque, registrarPerda: regPerda } = useGameStats()
-
-  // ── Auto-bet ──────────────────────────────────────────────────────────────
-  const [ab, setAb] = useState<AutoBetCfg>({
-    base: 1000,       // R$10,00 em centavos
-    target: 2.0,
-    strategy: 'fixed',
-    onLoss: 2.0,
-    rounds: 0,        // 0 = infinito
-    stopLoss: 0,
-    stopWin: 0,
-  })
-  const abRef = useRef(ab)
-  abRef.current = ab
-
-  // runtime fica em ref para não gerar re-renders no tick (só setAbTick faz render)
-  const abRun = useRef({ active: false, nextStake: 1000, pnl: 0, roundsLeft: Infinity })
-  const [, setAbTick] = useState(0)
   const [showAutoBet, setShowAutoBet] = useState(false)
 
   // refs lidas em efeitos sem causarem re-execução desnecessária
@@ -200,71 +183,12 @@ function Game() {
     store.pushToast('info', 'Aguardando confirmação', 'O cancelamento depende da confirmação do débito.')
   }, [store])
 
-  // ── Controlador auto-bet ──────────────────────────────────────────────────
-
-  const stopAutoBet = useCallback((motivo?: string) => {
-    if (!abRun.current.active) return
-    const pnl = abRun.current.pnl
-    abRun.current.active = false
-    setAbTick(x => x + 1)
-    store.pushToast(
-      motivo ? 'error' : 'info',
-      'Auto-bet encerrado',
-      `${motivo ? motivo + ' ' : ''}Resultado: ${pnl >= 0 ? '+' : '−'} R$ ${centavosParaReais(Math.abs(pnl))}.`,
-    )
-  }, [store])
-
-  const resolveAutoBet = useCallback((bet: { status: string; valorCentavos: number; pagamentoCentavos?: number; multiplicadorSaque?: number }) => {
-    const c = abRef.current
-    const r = abRun.current
-    const ganhou = bet.status === 'SACOU'
-    const roundPnl = ganhou ? (bet.pagamentoCentavos ?? 0) - bet.valorCentavos : -bet.valorCentavos
-    r.pnl += roundPnl
-
-    // calcular próxima aposta conforme estratégia
-    r.nextStake = ganhou
-      ? c.base
-      : c.strategy === 'martingale'
-        ? Math.min(Math.round(bet.valorCentavos * c.onLoss), 100_000)
-        : c.base
-
-    r.roundsLeft = r.roundsLeft === Infinity ? Infinity : r.roundsLeft - 1
-    setAbTick(x => x + 1)
-
-    // atualizar stats visuais para vitórias (perdas são atualizadas no useEffect de crash)
-    if (ganhou) {
-      const mult = bet.multiplicadorSaque ?? 1
-      regSaque(bet.pagamentoCentavos ?? 0, mult)
-      refetchWallet()
-    }
-
-    // verificar condições de parada
-    if (r.roundsLeft <= 0) { stopAutoBet('Rodadas concluídas.'); return }
-    if (c.stopWin > 0 && r.pnl >= c.stopWin) { stopAutoBet('Stop-win atingido.'); return }
-    if (c.stopLoss > 0 && r.pnl <= -c.stopLoss) { stopAutoBet('Stop-loss atingido.'); return }
-    if (r.nextStake > saldoRef.current) { stopAutoBet('Saldo insuficiente.'); return }
-  }, [stopAutoBet, refetchWallet])
-
-  const startAutoBet = useCallback(() => {
-    const c = abRef.current
-    abRun.current = {
-      active: true,
-      nextStake: c.base,
-      pnl: 0,
-      roundsLeft: c.rounds > 0 ? c.rounds : Infinity,
-    }
-    setAbTick(x => x + 1)
-    store.pushToast(
-      'info',
-      'Auto-bet iniciado',
-      `${c.strategy === 'martingale' ? 'Martingale' : 'Valor fixo'} · R$ ${centavosParaReais(c.base)} @ ${c.target.toFixed(2)}×`,
-    )
-  }, [store])
-
-  const toggleAutoBet = useCallback(() => {
-    if (abRun.current.active) stopAutoBet()
-    else startAutoBet()
-  }, [startAutoBet, stopAutoBet])
+  // ── Controlador auto-bet (extraído em hook) ───────────────────────────────
+  const {
+    cfg: ab, setCfg: setAb,
+    abRef, abRun,
+    stopAutoBet, toggleAutoBet, resolveAutoBet,
+  } = useAutoBetController(saldoRef, refetchWallet, regSaque, handleBet)
 
   // ── Watcher de fase ───────────────────────────────────────────────────────
   const prevFase = useRef(store.fase)
