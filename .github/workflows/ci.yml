@@ -82,6 +82,12 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Criar .env para CI
+        run: |
+          cp services/games/.env.example services/games/.env
+          cp services/wallets/.env.example services/wallets/.env
+          cp frontend/.env.local.example frontend/.env.local 2>/dev/null || true
+
       - name: Validar docker-compose.yml
         run: docker compose config --quiet
 
