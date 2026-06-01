@@ -14,18 +14,18 @@ export function useGameStats() {
   })
 
   const registrarAposta = (centavos: number) =>
-    setStats(s => ({ ...s, pnl: s.pnl - centavos, totalApostado: s.totalApostado + centavos }))
+    setStats(s => ({ ...s, totalApostado: s.totalApostado + centavos }))
 
-  const registrarSaque = (pagamentoCentavos: number, multiplicadorSaque: number) =>
+  const registrarSaque = (lucroCentavos: number, multiplicadorSaque: number) =>
     setStats(s => ({
       ...s,
-      pnl:         s.pnl + pagamentoCentavos,
+      pnl:         s.pnl + lucroCentavos,
       melhorSaque: Math.max(s.melhorSaque, multiplicadorSaque),
       rodadas:     s.rodadas + 1,
     }))
 
-  const registrarPerda = () =>
-    setStats(s => ({ ...s, rodadas: s.rodadas + 1 }))
+  const registrarPerda = (centavos: number) =>
+    setStats(s => ({ ...s, pnl: s.pnl - centavos, rodadas: s.rodadas + 1 }))
 
   return { stats, registrarAposta, registrarSaque, registrarPerda }
 }

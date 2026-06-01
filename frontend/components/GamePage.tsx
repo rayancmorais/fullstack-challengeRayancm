@@ -165,19 +165,26 @@ function Game() {
     try {
       const tk = await tokenValido()
       const result = await cashout(tk)
-      const pago = Number(result.pagamentoCentavos ?? result.valorCentavos)
-      setCashFlash(pago)
-      setTimeout(() => setCashFlash(0), 1800)
       await refetchWallet()
       qc.invalidateQueries({ queryKey: ['wallet'] })
-      const mult = playerBetRef.current?.multiplicadorSaque ?? store.multiplicador
-      regSaque(pago, mult)
+
+      // O WebSocket setSaque é emitido pelo backend ANTES do repository.salvar,
+      // portanto chega antes da resposta HTTP. Lemos o store via getState() para
+      // obter pagamentoCentavos correto sem depender do ciclo de render do React.
+      const bet = useGameStore.getState().apostas.find(a => a.jogadorId === playerJogadorId)
+      const apostado = Number(bet?.valorCentavos ?? result.valorCentavos ?? 0)
+      const pago     = Number(bet?.pagamentoCentavos ?? result.pagamentoCentavos ?? 0)
+      const mult    = bet?.multiplicadorSaque ?? store.multiplicador
+      const lucro   = pago - apostado
+      setCashFlash(pago)
+      setTimeout(() => setCashFlash(0), 1800)
+      regSaque(lucro, mult)
       store.pushToast('gold', `Sacou em ${mult.toFixed(2)}×`, `+ R$ ${centavosParaReais(pago)} creditado.`)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao sacar'
       store.pushToast('error', 'Não foi possível sacar', msg)
     }
-  }, [tokenValido, store, refetchWallet, qc])
+  }, [tokenValido, store, refetchWallet, qc, playerJogadorId])
 
   const handleCancel = useCallback(async () => {
     store.pushToast('info', 'Aguardando confirmação', 'O cancelamento depende da confirmação do débito.')
@@ -218,7 +225,7 @@ function Game() {
       const pb = playerBetRef.current
       if (pb) {
         if (pb.status === 'PERDEU') {
-          regPerda()
+          regPerda(Number(pb.valorCentavos))
           store.pushToast(
             'error',
             `Crash em ${store.pontoCrash?.toFixed(2)}×`,

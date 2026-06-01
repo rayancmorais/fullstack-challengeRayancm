@@ -90,7 +90,7 @@ export function useAutoBetController(
     dispararRender()
 
     if (ganhou) {
-      regSaque(bet.pagamentoCentavos ?? 0, bet.multiplicadorSaque ?? 1)
+      regSaque((bet.pagamentoCentavos ?? 0) - bet.valorCentavos, bet.multiplicadorSaque ?? 1)
       refetchWallet()
     }
 
