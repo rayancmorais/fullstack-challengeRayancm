@@ -8,11 +8,11 @@ Projeto fullstack desenvolvido como desafio técnico para a Jungle Gaming. É um
 
 ## Credenciais de acesso
 
-| Serviço | Usuário | Senha |
-|---------|---------|-------|
-| Keycloak Admin | `admin` | `admin` |
-| RabbitMQ Management | `admin` | `admin` |
-| Jogador de teste | `player` | `player123` |
+| Serviço             | Usuário  | Senha       |
+| ------------------- | -------- | ----------- |
+| Keycloak Admin      | `admin`  | `admin`     |
+| RabbitMQ Management | `admin`  | `admin`     |
+| Jogador de teste    | `player` | `player123` |
 
 ---
 
@@ -45,21 +45,21 @@ Keycloak (8080) — valida JWT em ambos os serviços via JWKS (RS256)
 
 ## Stack
 
-| Camada | Tecnologia | Versão |
-|--------|-----------|--------|
-| Runtime | Bun | 1.3.x |
-| Backend | NestJS + TypeScript strict | 10.x / 5.x |
-| ORM | Prisma | 7.x |
-| Banco | PostgreSQL | 18.3 |
-| Mensageria | RabbitMQ | 4.2.4 |
-| API Gateway | Kong (DB-less/declarativo) | 3.9.1 |
-| IdP | Keycloak | 26.5.5 |
-| WebSocket | socket.io via @nestjs/websockets | 4.x |
-| Frontend | Next.js (App Router, standalone) | 15.5 |
-| Estado WS | Zustand | 5.x |
-| Estado REST | TanStack Query | 5.x |
-| Auth UI | OIDC customizado (PKCE S256 + ROPC demo) | — |
-| CSS | Tailwind CSS | v4 |
+| Camada      | Tecnologia                               | Versão     |
+| ----------- | ---------------------------------------- | ---------- |
+| Runtime     | Bun                                      | 1.3.x      |
+| Backend     | NestJS + TypeScript strict               | 10.x / 5.x |
+| ORM         | Prisma                                   | 7.x        |
+| Banco       | PostgreSQL                               | 18.3       |
+| Mensageria  | RabbitMQ                                 | 4.2.4      |
+| API Gateway | Kong (DB-less/declarativo)               | 3.9.1      |
+| IdP         | Keycloak                                 | 26.5.5     |
+| WebSocket   | socket.io via @nestjs/websockets         | 4.x        |
+| Frontend    | Next.js (App Router, standalone)         | 15.5       |
+| Estado WS   | Zustand                                  | 5.x        |
+| Estado REST | TanStack Query                           | 5.x        |
+| Auth UI     | OIDC customizado (PKCE S256 + ROPC demo) | —          |
+| CSS         | Tailwind CSS                             | v4         |
 
 ---
 
@@ -94,52 +94,52 @@ Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend
 
 ## Endpoints
 
-| Serviço | URL |
-|---------|-----|
-| Frontend | http://localhost:3001 |
-| Game Service (direto) | http://localhost:4001 |
-| Wallet Service (direto) | http://localhost:4002 |
-| Kong (API Gateway) | http://localhost:8000 |
-| Kong Admin API | http://localhost:8001 |
-| Keycloak Admin | http://localhost:8080 |
-| RabbitMQ Management | http://localhost:15672 |
-| Swagger Games | http://localhost:8000/games/api |
-| Swagger Wallets | http://localhost:8000/wallets/api |
+| Serviço                 | URL                                             |
+| ----------------------- | ----------------------------------------------- |
+| Frontend                | http://localhost:3001                           |
+| Game Service (direto)   | http://localhost:4001                           |
+| Wallet Service (direto) | http://localhost:4002                           |
+| Kong (API Gateway)      | http://localhost:8000                           |
+| Kong Admin API          | http://localhost:8001                           |
+| Keycloak Admin          | http://localhost:8080                           |
+| RabbitMQ Management     | http://localhost:15672                          |
+| Swagger Games           | Swagger Games: http://localhost:8000/games/docs |
+| Swagger Wallets         | http://localhost:4002/docs                      |
 
 ### REST — Game Service (via Kong em `/games`)
 
-| Método | Endpoint | Auth | Descrição |
-|--------|---------|------|-----------|
-| GET | `/rounds/current` | não | Estado da rodada ativa com lista de apostas |
-| GET | `/rounds/history?limit=N` | não | Histórico paginado de rodadas encerradas |
-| GET | `/rounds/:id/verify` | não | Dados de verificação provably fair da rodada |
-| GET | `/leaderboard?period=24h\|week` | não | Top 10 jogadores por lucro no período |
-| GET | `/bets/me` | sim | Histórico de apostas do jogador autenticado |
-| POST | `/bet` | sim | Apostar na rodada atual (`valorCentavos`, `autoCashout?`) |
-| POST | `/bet/cashout` | sim | Sacar no multiplicador atual |
+| Método | Endpoint                        | Auth | Descrição                                                 |
+| ------ | ------------------------------- | ---- | --------------------------------------------------------- |
+| GET    | `/rounds/current`               | não  | Estado da rodada ativa com lista de apostas               |
+| GET    | `/rounds/history?limit=N`       | não  | Histórico paginado de rodadas encerradas                  |
+| GET    | `/rounds/:id/verify`            | não  | Dados de verificação provably fair da rodada              |
+| GET    | `/leaderboard?period=24h\|week` | não  | Top 10 jogadores por lucro no período                     |
+| GET    | `/bets/me`                      | sim  | Histórico de apostas do jogador autenticado               |
+| POST   | `/bet`                          | sim  | Apostar na rodada atual (`valorCentavos`, `autoCashout?`) |
+| POST   | `/bet/cashout`                  | sim  | Sacar no multiplicador atual                              |
 
 ### REST — Wallet Service (via Kong em `/wallets`)
 
-| Método | Endpoint | Auth | Descrição |
-|--------|---------|------|-----------|
-| POST | `/wallets` | sim | Cria carteira para o jogador autenticado |
-| GET | `/wallets/me` | sim | Retorna saldo atual em centavos |
-| POST | `/wallets/reset` | sim | Reseta saldo para R$ 1.000.000,00 (rate-limit: 1/min) |
+| Método | Endpoint         | Auth | Descrição                                             |
+| ------ | ---------------- | ---- | ----------------------------------------------------- |
+| POST   | `/wallets`       | sim  | Cria carteira para o jogador autenticado              |
+| GET    | `/wallets/me`    | sim  | Retorna saldo atual em centavos                       |
+| POST   | `/wallets/reset` | sim  | Reseta saldo para R$ 1.000.000,00 (rate-limit: 1/min) |
 
 ### WebSocket — namespace `/jogo` (porta 4001 direto)
 
 Apenas server-push. Ações do jogador vão por REST.
 
-| Evento | Quando | Payload principal |
-|--------|--------|-------------------|
-| `rodada:apostas` | Fase de apostas abre | `rodadaId`, `hashSeedServidor`, `encerraEm` |
-| `rodada:iniciada` | Rodada começa | `rodadaId`, `iniciadoEm` |
-| `rodada:tick` | A cada 100ms | `multiplicador` |
-| `rodada:crash` | Rodada termina | `rodadaId`, `pontoCrash`, `seedServidor` |
-| `aposta:registrada` | Nova aposta confirmada | `jogadorId`, `nomeUsuario`, `valorCentavos` |
-| `aposta:saque` | Cashout de um jogador | `jogadorId`, `pagamentoCentavos`, `multiplicador` |
-| `aposta:cancelada` | Débito falhou | `jogadorId`, `motivo` |
-| `aposta:credito_falhou` | Crédito falhou após saque | `jogadorId`, `apostaId` |
+| Evento                  | Quando                    | Payload principal                                 |
+| ----------------------- | ------------------------- | ------------------------------------------------- |
+| `rodada:apostas`        | Fase de apostas abre      | `rodadaId`, `hashSeedServidor`, `encerraEm`       |
+| `rodada:iniciada`       | Rodada começa             | `rodadaId`, `iniciadoEm`                          |
+| `rodada:tick`           | A cada 100ms              | `multiplicador`                                   |
+| `rodada:crash`          | Rodada termina            | `rodadaId`, `pontoCrash`, `seedServidor`          |
+| `aposta:registrada`     | Nova aposta confirmada    | `jogadorId`, `nomeUsuario`, `valorCentavos`       |
+| `aposta:saque`          | Cashout de um jogador     | `jogadorId`, `pagamentoCentavos`, `multiplicador` |
+| `aposta:cancelada`      | Débito falhou             | `jogadorId`, `motivo`                             |
+| `aposta:credito_falhou` | Crédito falhou após saque | `jogadorId`, `apostaId`                           |
 
 ---
 
@@ -216,13 +216,13 @@ Em produção seria necessário um outbox transacional para garantia at-least-on
 
 ## Bônus implementados
 
-| Bônus | Status | Detalhe |
-|-------|--------|---------|
-| Auto-cashout no servidor | ✅ | `autoCashout` persistido na aposta; `verificarAutoCashouts()` a cada tick |
-| Auto-bet (Martingale/fixo) | ✅ | `useAutoBetController` hook + `AutoBetPanel.tsx` |
-| Efeitos sonoros | ✅ | Web Audio API (blips) + `rise.mp3` loop + `boom.mp3` no crash |
-| Leaderboard | ✅ | `GET /leaderboard?period=24h\|week` + SQL raw + frontend com TanStack Query |
-| CI (GitHub Actions) | ✅ | `.github/workflows/ci.yml` — jobs paralelos, cache Bun, build-check Docker |
-| Rate limiting (Kong) | ✅ | 60 req/min em POST /games; 1 reset/min em POST /wallets/reset |
-| Swagger/OpenAPI | ✅ | `/games/api` e `/wallets/api` via Kong |
-| Animação SVG customizada (fase de crash) | ✅ | Asteroide + planeta com expressões, escudo, explosão, confetes |
+| Bônus                                    | Status | Detalhe                                                                     |
+| ---------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| Auto-cashout no servidor                 | ✅     | `autoCashout` persistido na aposta; `verificarAutoCashouts()` a cada tick   |
+| Auto-bet (Martingale/fixo)               | ✅     | `useAutoBetController` hook + `AutoBetPanel.tsx`                            |
+| Efeitos sonoros                          | ✅     | Web Audio API (blips) + `rise.mp3` loop + `boom.mp3` no crash               |
+| Leaderboard                              | ✅     | `GET /leaderboard?period=24h\|week` + SQL raw + frontend com TanStack Query |
+| CI (GitHub Actions)                      | ✅     | `.github/workflows/ci.yml` — jobs paralelos, cache Bun, build-check Docker  |
+| Rate limiting (Kong)                     | ✅     | 60 req/min em POST /games; 1 reset/min em POST /wallets/reset               |
+| Swagger/OpenAPI                          | ✅     | `/games/api` e `/wallets/api` via Kong                                      |
+| Animação SVG customizada (fase de crash) | ✅     | Asteroide + planeta com expressões, escudo, explosão, confetes              |

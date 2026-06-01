@@ -165,7 +165,7 @@ function Game() {
     try {
       const tk = await tokenValido()
       const result = await cashout(tk)
-      const pago = Number(result.valorCentavos)
+      const pago = Number(result.pagamentoCentavos ?? result.valorCentavos)
       setCashFlash(pago)
       setTimeout(() => setCashFlash(0), 1800)
       await refetchWallet()

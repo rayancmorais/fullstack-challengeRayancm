@@ -86,4 +86,4 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build images (sem subir containers)
-        run: docker compose build
+        run: docker compose build --no-cache

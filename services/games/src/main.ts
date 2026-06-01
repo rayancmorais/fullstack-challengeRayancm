@@ -27,7 +27,15 @@ async function bootstrap(): Promise<void> {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      servers: [
+        { url: 'http://localhost:8000/games', description: 'Via Kong' },
+        { url: 'http://localhost:4001', description: 'Direto' },
+      ],
+    },
+  });
 
   await app.startAllMicroservices();
 

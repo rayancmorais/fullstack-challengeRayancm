@@ -48,6 +48,7 @@ export interface BetResult {
   id: string
   status: string
   valorCentavos: string
+  pagamentoCentavos?: string
 }
 
 export const getWallet = (token: string) =>
