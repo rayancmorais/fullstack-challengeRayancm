@@ -78,6 +78,21 @@ Aguarda todos os healthchecks passarem (~30–60s). O Keycloak leva um pouco mai
 
 O frontend abre em `http://localhost:3001`. O login usa o usuário `player` / `player123` pré-configurado.
 
+## Variáveis de Ambiente
+
+Os arquivos `.env` não estão no repositório por segurança.
+Cada serviço tem um `.env.example` com os valores padrão para desenvolvimento local.
+
+Para configurar manualmente (não necessário com Docker):
+
+```bash
+cp services/games/.env.example services/games/.env
+cp services/wallets/.env.example services/wallets/.env
+cp frontend/.env.local.example frontend/.env.local
+```
+
+Com `bun run docker:up` as variáveis são injetadas automaticamente pelo Docker Compose — não é necessário criar os arquivos `.env` manualmente para rodar o projeto.
+
 ### Autenticação — Nota sobre o flow de login
 
 O fluxo principal implementado é **Authorization Code + PKCE (S256)**, conforme especificado pelo desafio. O frontend possui também uma função `loginDireto()` que usa o **Resource Owner Password Credentials (ROPC)**, utilizada para facilitar testes locais (preenche usuário/senha automaticamente e autentica sem redirecionar ao Keycloak).

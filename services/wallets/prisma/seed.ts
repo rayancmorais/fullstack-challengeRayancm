@@ -13,10 +13,10 @@ const wallet = await prisma.wallet.upsert({
   create: {
     jogadorId: PLAYER_ID,
     nomeUsuario: 'player',
-    saldo: 100000n,
+    saldo: 100_000_000n,
   },
 })
 
-console.log(`Seed: wallet do player criada — saldo R$${Number(wallet.saldo) / 100}`)
+console.log('Seed: wallet do player criada/atualizada')
 
 await prisma.$disconnect()

@@ -99,10 +99,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4001:4001"
-    env_file:
-      - ./services/games/.env
     environment:
       DATABASE_URL: postgresql://admin:admin@postgres:5432/games
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/crash-game/protocol/openid-connect/certs
+      PORT: "4001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,10 +125,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4002:4002"
-    env_file:
-      - ./services/wallets/.env
     environment:
       DATABASE_URL: postgresql://admin:admin@postgres:5432/wallets
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/crash-game/protocol/openid-connect/certs
+      PORT: "4002"
     depends_on:
       postgres:
         condition: service_healthy

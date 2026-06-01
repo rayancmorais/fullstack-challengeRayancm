@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 4001
 
-CMD sh -c "bunx prisma migrate deploy && bun run src/main.ts"
+CMD sh -c "until bunx prisma migrate deploy; do echo 'Aguardando banco games...'; sleep 3; done && bun run src/main.ts"
