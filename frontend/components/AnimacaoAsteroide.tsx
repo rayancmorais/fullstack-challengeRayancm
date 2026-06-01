@@ -39,7 +39,7 @@ export default function AnimacaoAsteroide() {
   }, [multiplicador, crescimento]);
 
   // planeta = destino do asteroide (canto superior direito)
-  const planeta = { x: largura * 0.84, y: altura * 0.2, r: 46 };
+  const planeta = { x: largura * 0.78, y: altura * 0.18, r: 42 };
   const px = planeta.x, py = planeta.y;
 
   const rodando  = faseDoJogo === "RUNNING";

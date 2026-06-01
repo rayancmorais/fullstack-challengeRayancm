@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth'
 import { useGameStore } from '@/store/game'
@@ -68,8 +68,16 @@ function Game() {
   const [showAutoBet, setShowAutoBet] = useState(false)
 
   // refs lidas em efeitos sem causarem re-execução desnecessária
-  const saldoRef = useRef(0)
-  const playerBetRef = useRef<ReturnType<(typeof store.apostas)['find']> | null>(null)
+  const saldoRef       = useRef(0)
+  const playerBetRef   = useRef<ReturnType<(typeof store.apostas)['find']> | null>(null)
+  const audioLiberado  = useRef(false)
+
+  const destravarAudio = () => {
+    if (audioLiberado.current) return
+    audioLiberado.current = true
+    Sound.iniciarSubida()
+    Sound.pararSubida()
+  }
 
   // Sound
   useEffect(() => { Sound.init() }, [])
@@ -112,6 +120,21 @@ function Game() {
   const playerBet = store.apostas.find(a => a.jogadorId === playerJogadorId) || null
   playerBetRef.current = playerBet
 
+  // campeão da rodada — computado para TODOS os viewers após o crash
+  const campeaoDaRodada = useMemo(() => {
+    if (store.fase !== 'CRASHADO') return null
+    const saques = store.apostas.filter(a => a.status === 'SACOU' && a.multiplicadorSaque != null)
+    if (saques.length === 0) return null
+    const melhor = saques.reduce((b, a) => (a.multiplicadorSaque! > b.multiplicadorSaque! ? a : b))
+    if ((melhor.multiplicadorSaque ?? 0) < 1.5) return null   // só mostra se sacou em pelo menos 1.5×
+    return {
+      mult:      melhor.multiplicadorSaque!,
+      nome:      melhor.nomeUsuario,
+      pagamento: melhor.pagamentoCentavos ?? 0,
+      eu:        melhor.jogadorId === playerJogadorId,
+    }
+  }, [store.fase, store.apostas, playerJogadorId])
+
   // sincroniza sacadoEm no store para AnimacaoAsteroide ler diretamente
   useEffect(() => {
     if (store.fase === 'RODANDO' && playerBet?.status === 'SACOU') {
@@ -124,6 +147,7 @@ function Game() {
   // autoCashoutOverride: se definido, usa esse valor em vez de autoRef.current
   // quiet: suprime toast (usado pelo auto-bet para não poluir notificações)
   const handleBet = useCallback(async (centavos: number, autoCashoutOverride?: number, quiet = false) => {
+    destravarAudio()
     try {
       const { auto: autoOn, autoTarget: at } = autoRef.current
       const autoCashout = autoCashoutOverride !== undefined ? autoCashoutOverride : (autoOn ? at : undefined)
@@ -302,6 +326,7 @@ function Game() {
             cashFlash={cashFlash}
             pagamentoCentavos={playerBet?.pagamentoCentavos ?? 0}
             apostaPerda={store.fase === 'CRASHADO' && playerBet?.status === 'PERDEU' ? playerBet.valorCentavos : 0}
+            campeaoDaRodada={campeaoDaRodada}
             onOpenFair={() => setShowFair(true)}
           />
         </div>

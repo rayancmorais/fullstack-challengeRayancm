@@ -12,6 +12,13 @@ const IconShield = () => (
   </svg>
 )
 
+interface Campeao {
+  mult:      number
+  nome:      string
+  pagamento: number   // centavos
+  eu:        boolean  // true se o viewer é o campeão
+}
+
 interface Props {
   phase: GamePhase | null
   multiplier: number
@@ -20,15 +27,19 @@ interface Props {
   rodadaId: string | null
   cashFlash: number
   pagamentoCentavos: number
-  apostaPerda: number    // centavos apostados que foram perdidos; 0 = não perdeu
+  apostaPerda: number
+  campeaoDaRodada: Campeao | null
   onOpenFair: () => void
 }
 
-export function Stage({ phase, multiplier, hashSeedServidor, encerraEm, rodadaId, cashFlash, pagamentoCentavos, apostaPerda, onOpenFair }: Props) {
-  const [shakeKey, setShakeKey]   = useState(0)
-  const prevPhase                  = useRef(phase)
-  const sacadoEm                   = useGameStore(s => s.sacadoEm)
-  const pontoCrash                 = useGameStore(s => s.pontoCrash) ?? 0
+export function Stage({
+  phase, multiplier, hashSeedServidor, encerraEm, rodadaId,
+  cashFlash, pagamentoCentavos, apostaPerda, campeaoDaRodada, onOpenFair,
+}: Props) {
+  const [shakeKey, setShakeKey] = useState(0)
+  const prevPhase               = useRef(phase)
+  const sacadoEm                = useGameStore(s => s.sacadoEm)
+  const pontoCrash              = useGameStore(s => s.pontoCrash) ?? 0
 
   useEffect(() => {
     if (phase === 'CRASHADO' && prevPhase.current === 'RODANDO') setShakeKey(k => k + 1)
@@ -39,20 +50,19 @@ export function Stage({ phase, multiplier, hashSeedServidor, encerraEm, rodadaId
   const crashed = phase === 'CRASHADO'
   const betting = phase === 'APOSTAS_ABERTAS'
 
-  // --- estados do overlay ---
-  const justSacou  = running  && sacadoEm != null           // ganhou, rodada ainda viva
-  const sobreviveu = crashed  && sacadoEm != null           // ganhou e o crash confirmou
-  const perdeu     = crashed  && apostaPerda > 0            // tinha aposta, perdeu
-  const epico      = crashed  && pontoCrash >= 5 && !perdeu // rodada alta, espectador
-
+  const justSacou  = running && sacadoEm != null
+  const sobreviveu = crashed && sacadoEm != null
+  const perdeu     = crashed && apostaPerda > 0
   const big        = (justSacou || sobreviveu) && (sacadoEm ?? 0) >= 5
 
-  // classe do container
+  // campeão da rodada — mostra para TODOS após o crash (inclui espectadores e perdedores)
+  const mostraCampeao = !!campeaoDaRodada && !justSacou && !sobreviveu
+
   const stageClass = [
     'stage',
-    crashed                    ? 'is-crashed flash-crash' : '',
-    justSacou || sobreviveu    ? 'is-saved'                : '',
-    perdeu                     ? 'is-lost'                 : '',
+    crashed                       ? 'is-crashed flash-crash' : '',
+    justSacou || sobreviveu       ? 'is-saved'               : '',
+    perdeu && !campeaoDaRodada    ? 'is-lost'                : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -75,10 +85,11 @@ export function Stage({ phase, multiplier, hashSeedServidor, encerraEm, rodadaId
       <AnimacaoAsteroide />
 
       {betting ? (
+        /* ── Fase de apostas ── */
         <CountdownOverlay encerraEm={encerraEm} />
 
       ) : justSacou ? (
-        /* ── Ganhou — rodada ainda viva ── */
+        /* ── Jogador sacou — rodada ainda viva ── */
         <div className={`prize-card ${big ? 'big' : ''}`}>
           <div className="pc-spark">{big ? '★ MEGA PRÊMIO ★' : '✦ Prêmio garantido ✦'}</div>
           <div className="pc-mult">{sacadoEm!.toFixed(2)}<span>×</span></div>
@@ -87,28 +98,50 @@ export function Stage({ phase, multiplier, hashSeedServidor, encerraEm, rodadaId
         </div>
 
       ) : sobreviveu ? (
-        /* ── Ganhou — crash confirmou que escapou ── */
-        <div className={`prize-card ${big ? 'big' : ''}`}>
-          <div className="pc-spark">{big ? '★ ESCAPOU COM FORTUNA ★' : '✦ Escapou antes do crash ✦'}</div>
+        /* ── Jogador sacou — crash confirmou ── */
+        <div className={`prize-card ${big ? 'big' : ''} ${campeaoDaRodada?.eu ? 'campeao' : ''}`}>
+          {campeaoDaRodada?.eu && <div className="confetes" aria-hidden />}
+          <div className="pc-spark">
+            {campeaoDaRodada?.eu ? '👑 MELHOR SAQUE DA RODADA! 👑' : big ? '★ ESCAPOU COM FORTUNA ★' : '✦ Escapou antes do crash ✦'}
+          </div>
           <div className="pc-mult">{sacadoEm!.toFixed(2)}<span>×</span></div>
           <div className="pc-pay">+ R$ {fmt(pagamentoCentavos / 100)}</div>
           <div className="pc-live">crash em {pontoCrash.toFixed(2)}× · planeta sobreviveu</div>
         </div>
 
+      ) : mostraCampeao ? (
+        /* ── Campeão da rodada — visível para TODOS (espectador, perdedor, não apostou) ── */
+        <div className={`prize-card big campeao`}>
+          <div className="confetes" aria-hidden />
+          <div className="pc-spark">👑 MELHOR SAQUE DA RODADA 👑</div>
+          <div className="pc-mult">{campeaoDaRodada!.mult.toFixed(2)}<span>×</span></div>
+          {campeaoDaRodada!.pagamento > 0 && (
+            <div className="pc-pay">+ R$ {fmt(campeaoDaRodada!.pagamento / 100)}</div>
+          )}
+          <div className="pc-live" style={{ color: 'var(--gold)', fontSize: 13 }}>
+            {campeaoDaRodada!.nome} · crash em {pontoCrash.toFixed(2)}×
+          </div>
+          {perdeu && (
+            <div className="pc-live" style={{ color: 'var(--danger)', marginTop: 6 }}>
+              você perdeu R$ {fmt(apostaPerda / 100)} nesta rodada
+            </div>
+          )}
+        </div>
+
       ) : perdeu ? (
-        /* ── Perdeu — crash antes de sacar ── */
+        /* ── Jogador perdeu — sem campeão ── */
         <div className="perda-card">
           <div className="pd-label">💥 EXPLODIU!</div>
           <div className="pd-valor">− R$ {fmt(apostaPerda / 100)}</div>
           <div className="pd-sub">crash em {pontoCrash.toFixed(2)}× · não sacou a tempo</div>
         </div>
 
-      ) : epico ? (
-        /* ── Espectador / não apostou — rodada épica ── */
+      ) : crashed && pontoCrash >= 5 ? (
+        /* ── Rodada épica — espectador sem saque na rodada ── */
         <div className="epico-card">
           <div className="ep-label">🚀 RODADA ÉPICA</div>
           <div className="ep-mult">{pontoCrash.toFixed(2)}<span>×</span></div>
-          <div className="ep-sub">quem sacou levou o prêmio</div>
+          <div className="ep-sub">crash em {pontoCrash.toFixed(2)}×</div>
         </div>
 
       ) : (

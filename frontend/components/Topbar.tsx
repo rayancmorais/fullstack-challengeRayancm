@@ -3,12 +3,15 @@ import { centavosParaReais, initials } from '@/lib/utils'
 import { useGameStore } from '@/store/game'
 import { useAuthStore } from '@/store/auth'
 
-const IconRocket = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+const IconAsteroide = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    {/* corpo rochoso do asteroide */}
+    <path d="M14.5 3.5 Q17 2 19 4 Q21.5 5.5 21 8.5 Q20.5 12 17.5 13.5 Q15 14.5 12.5 13 L7 18.5 Q5.5 20 3.5 19.5 Q2 19 2 17.5 Q2 15.5 3.5 14 L9 8.5 Q7.5 6 8.5 3.5 Q9.5 1 12 1 Q13.5 1 14.5 3.5 Z" opacity="0.9"/>
+    {/* cratera */}
+    <ellipse cx="13.5" cy="8.5" rx="2.2" ry="1.5" transform="rotate(-35 13.5 8.5)" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.7"/>
+    {/* rastro de brilho (cauda do cometa) */}
+    <line x1="3" y1="9" x2="7" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+    <line x1="2" y1="12" x2="5" y2="15" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.35"/>
   </svg>
 )
 
@@ -48,7 +51,7 @@ export function Topbar({ username, saldo }: Props) {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="logo"><IconRocket /></span>
+        <span className="logo"><IconAsteroide /></span>
         <span>NOVA<span className="x">X</span></span>
       </div>
       <div className="topbar-right">
