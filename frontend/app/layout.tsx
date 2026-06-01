@@ -5,6 +5,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'NovaX — Crash Game',
   description: 'Crash game provably-fair em tempo real.',
+  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -116,7 +116,12 @@ export function BetControls({
 
   return (
     <div className="card card-pad bet-panel">
-      <div className="bet-top">
+
+      {/* ── 1. Botão principal — em destaque no topo ── */}
+      {actionBtn}
+
+      {/* ── 2. Controles de valor + auto cashout ── */}
+      <div className="bet-top" style={{ marginTop: 14 }}>
         <div className="field">
           <label>Valor da aposta</label>
           <div className={`amount-input ${err ? 'invalid' : ''}`}>
@@ -131,6 +136,7 @@ export function BetControls({
             <button className="step-btn" disabled={locked} onClick={() => step(-1)}>−</button>
             <button className="step-btn" disabled={locked} onClick={() => step(1)}>+</button>
           </div>
+          <div className="err-text">{err}</div>
           <div className="quick-row">
             {quickBtns.map(([l, fn]) => (
               <button key={l} className="quick-btn" disabled={locked} onClick={fn}>{l}</button>
@@ -165,9 +171,7 @@ export function BetControls({
         </div>
       </div>
 
-      <div className="err-text">{err}</div>
-      {actionBtn}
-
+      {/* ── 3. Saldo ── */}
       <div className="bet-status">
         <span className="k">SALDO</span>
         <span className="v mono">R$ {centavosParaReais(saldo)}</span>

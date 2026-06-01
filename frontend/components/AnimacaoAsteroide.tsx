@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/game";
 
 export default function AnimacaoAsteroide() {
@@ -39,7 +39,19 @@ export default function AnimacaoAsteroide() {
   }, [multiplicador, crescimento]);
 
   // planeta = destino do asteroide (canto superior direito)
-  const planeta = { x: largura * 0.78, y: altura * 0.18, r: 42 };
+  // no mobile o asteroide sobe no mesmo eixo x do planeta → trajetória direta
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    setMobile(mq.matches);
+    const fn = (e: MediaQueryListEvent) => setMobile(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+
+  const planeta = mobile
+    ? { x: largura * 0.80, y: altura * 0.18, r: 42 }  // mobile: direto para cima
+    : { x: largura * 0.84, y: altura * 0.20, r: 42 };  // desktop: diagonal suave
   const px = planeta.x, py = planeta.y;
 
   const rodando  = faseDoJogo === "RUNNING";

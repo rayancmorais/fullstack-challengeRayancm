@@ -51,7 +51,7 @@ export function Topbar({ username, saldo }: Props) {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="logo"><IconAsteroide /></span>
+        <img src="/favicon.svg" className="logo" style={{ background: 'none', padding: 0 }} alt="NovaX" />
         <span>NOVA<span className="x">X</span></span>
       </div>
       <div className="topbar-right">

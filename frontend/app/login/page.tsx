@@ -129,15 +129,11 @@ export default function PaginaLogin() {
     <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div className="bg-ambient" />
       <div className="login-card">
-        <div style={{
-          width: 60, height: 60, borderRadius: 16, display: 'grid', placeItems: 'center',
-          margin: '0 auto 22px',
-          background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-          boxShadow: '0 0 32px rgba(var(--accent-rgb),0.5)',
-          color: 'var(--accent-ink)',
-        }}>
-          <IconRocket />
-        </div>
+        <img
+          src="/favicon.svg"
+          alt="NovaX"
+          style={{ width: 72, height: 72, display: 'block', margin: '0 auto 22px', borderRadius: 20, boxShadow: '0 0 32px rgba(var(--accent-rgb),0.5)' }}
+        />
 
         <h1 style={{ textAlign: 'center', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 6px' }}>
           NOVA<span style={{ color: 'var(--accent)' }}>X</span>
