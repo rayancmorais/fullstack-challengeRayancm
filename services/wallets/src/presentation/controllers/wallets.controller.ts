@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, HttpCode, HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, HttpCode, HttpStatus, TooManyRequestsException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateWalletUseCase } from '../../application/create-wallet.use-case';
 import { GetWalletUseCase } from '../../application/get-wallet.use-case';
@@ -53,7 +53,7 @@ export class WalletsController {
     const agora = Date.now();
     const ultimo = ultimoReset.get(usuario.jogadorId) ?? 0;
     if (agora - ultimo < RESET_TTL_MS) {
-      throw new HttpException('Aguarde 1 minuto antes de resetar novamente', HttpStatus.TOO_MANY_REQUESTS);
+      throw new TooManyRequestsException('Aguarde 1 minuto antes de resetar novamente');
     }
     ultimoReset.set(usuario.jogadorId, agora);
     await this.resetarCarteira.executar(usuario.jogadorId);
