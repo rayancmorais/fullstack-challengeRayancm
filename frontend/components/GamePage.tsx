@@ -83,7 +83,15 @@ function Game() {
   useEffect(() => { Sound.init() }, [])
   useEffect(() => {
     Sound.on = store.somAtivo
-    if (store.somAtivo) Sound.ensure()
+    if (store.somAtivo) {
+      Sound.ensure()
+      // se estiver em rodada, reinicia a subida ao desmutar
+      if (store.fase === 'RODANDO') Sound.iniciarSubida()
+    } else {
+      // para imediatamente o loop de subida ao mutar
+      Sound.pararSubida()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.somAtivo])
 
   // Wallet

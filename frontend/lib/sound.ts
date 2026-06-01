@@ -61,6 +61,7 @@ export const Sound = {
   },
 
   iniciarSubida() {
+    if (!this.on) return          // respeita o toggle de mudo
     _carregarClipes()
     if (!_riseEl) return
     try { _riseEl.currentTime = 0; _riseEl.play().catch(() => {}) } catch {}
@@ -72,6 +73,7 @@ export const Sound = {
 
   tocarExplosao() {
     this.pararSubida()
+    if (!this.on) return          // respeita o toggle de mudo
     _carregarClipes()
     if (!_boomEl) return
     try { _boomEl.currentTime = 0; _boomEl.play().catch(() => {}) } catch {}
