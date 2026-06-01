@@ -4,8 +4,14 @@ import { Round } from '../domain/round/round.entity';
 import { Bet, StatusAposta } from '../domain/bet/bet.entity';
 import { RoundRepository } from '../domain/round/round.repository';
 import { ErroDominio } from '../domain/erros';
-import { GameGateway } from '../presentation/gateways/game.gateway';
 import { type PublicadorMensagens, PUBLICADOR_MENSAGENS } from './publicador-mensagens';
+import { type IPublicadorEventos, PUBLICADOR_EVENTOS } from './publicador-eventos.interface';
+
+const DELAY_INICIAL_MS              = 2_000;
+const DURACAO_FASE_APOSTAS_MS       = 10_000;
+const DELAY_ENTRE_RODADAS_MS        = 3_000;
+const INTERVALO_TICK_MS             = 100;
+const EXPOENTE_MULTIPLICADOR_POR_S  = 0.06;
 
 @Injectable()
 export class GameEngineService implements OnModuleInit {
@@ -15,13 +21,13 @@ export class GameEngineService implements OnModuleInit {
 
   constructor(
     private readonly roundRepository: RoundRepository,
-    private readonly gateway: GameGateway,
+    @Inject(PUBLICADOR_EVENTOS) private readonly gateway: IPublicadorEventos,
     @Inject(PUBLICADOR_MENSAGENS) private readonly publicador: PublicadorMensagens,
   ) {}
 
   onModuleInit() {
     // Aguarda 2s para o servidor HTTP e WebSocket estarem prontos antes do primeiro loop
-    setTimeout(() => this.iniciarFaseApostas(), 2000);
+    setTimeout(() => this.iniciarFaseApostas(), DELAY_INICIAL_MS);
   }
 
   obterRodadaAtual(): Round | null {
@@ -105,14 +111,14 @@ export class GameEngineService implements OnModuleInit {
 
     await this.roundRepository.salvar(this.rodadaAtual);
 
-    const encerraEm = new Date(Date.now() + 10_000);
+    const encerraEm = new Date(Date.now() + DURACAO_FASE_APOSTAS_MS);
     this.gateway.emitirFaseApostas({
       rodadaId: idRodada,
       hashSeedServidor: this.rodadaAtual.hashSeedServidor,
       encerraEm,
     });
 
-    setTimeout(() => this.iniciarRodada(), 10_000);
+    setTimeout(() => this.iniciarRodada(), DURACAO_FASE_APOSTAS_MS);
   }
 
   private async iniciarRodada(): Promise<void> {
@@ -127,14 +133,14 @@ export class GameEngineService implements OnModuleInit {
     });
 
     const marcadorTempo = Date.now();
-    this.tickInterval = setInterval(() => this.processarTick(marcadorTempo), 100);
+    this.tickInterval = setInterval(() => this.processarTick(marcadorTempo), INTERVALO_TICK_MS);
   }
 
   private async processarTick(marcadorTempo: number): Promise<void> {
     if (!this.rodadaAtual) return;
 
     const segundos = (Date.now() - marcadorTempo) / 1000;
-    this.multiplicadorAtual = Math.round(Math.pow(Math.E, 0.06 * segundos) * 100) / 100;
+    this.multiplicadorAtual = Math.round(Math.pow(Math.E, EXPOENTE_MULTIPLICADOR_POR_S * segundos) * 100) / 100;
 
     this.gateway.emitirTick({ multiplicador: this.multiplicadorAtual });
 
@@ -181,6 +187,6 @@ export class GameEngineService implements OnModuleInit {
       crashadoEm: new Date(),
     });
 
-    setTimeout(() => this.iniciarFaseApostas(), 3_000);
+    setTimeout(() => this.iniciarFaseApostas(), DELAY_ENTRE_RODADAS_MS);
   }
 }

@@ -5,9 +5,10 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { IPublicadorEventos } from '../../application/publicador-eventos.interface';
 
 @WebSocketGateway({ cors: { origin: '*' }, namespace: '/jogo' })
-export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, IPublicadorEventos {
   @WebSocketServer()
   servidor: Server;
 

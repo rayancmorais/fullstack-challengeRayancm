@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/game";
+import { computarCurva } from "@/lib/curve";
 
 export default function AnimacaoAsteroide() {
-  const faseDoJogo   = useGameStore((e) => e.faseDoJogo);
+  const fase         = useGameStore((e) => e.fase);
+  const faseDoJogo   = fase === 'RODANDO' ? 'RUNNING' : fase === 'CRASHADO' ? 'CRASHED' : 'BETTING';
   const multiplicador = useGameStore((e) => e.multiplicador);
   const crescimento  = useGameStore((e) => e.crescimento);
   const sacadoEm     = useGameStore((e) => e.sacadoEm);
@@ -13,30 +15,12 @@ export default function AnimacaoAsteroide() {
     conectar(process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4001/jogo");
   }, [conectar]);
 
-  const largura = 1000, altura = 562, padInf = 8, padSup = 40;
+  const largura = 1000, altura = 562;
 
-  const { caminho, area, ponta, angulo } = useMemo(() => {
-    const multAtual = Math.max(1.0001, multiplicador);
-    const cresc = crescimento;
-    const decorrido = Math.log(multAtual) / cresc;
-    const janela = Math.max(decorrido / 0.8, 2600);
-    const yMax = Math.max(1.9, multAtual * 1.28);
-    const N = 64;
-    const pontos: [number, number][] = [];
-    for (let i = 0; i <= N; i++) {
-      const t = (decorrido * i) / N;
-      const mult = Math.exp(cresc * t);
-      const x = (t / janela) * largura;
-      const y = altura - padInf - ((mult - 1) / (yMax - 1)) * (altura - padInf - padSup);
-      pontos.push([x, y]);
-    }
-    const ultimo = pontos[pontos.length - 1];
-    const anterior = pontos[pontos.length - 2] || ([0, altura] as [number, number]);
-    const d = pontos.map((p, i) => (i === 0 ? `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}` : `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`)).join(" ");
-    const a = `${d} L ${ultimo[0].toFixed(1)} ${altura} L 0 ${altura} Z`;
-    const ang = (Math.atan2(ultimo[1] - anterior[1], ultimo[0] - anterior[0]) * 180) / Math.PI;
-    return { caminho: d, area: a, ponta: ultimo, angulo: ang };
-  }, [multiplicador, crescimento]);
+  const { path: caminho, area, tip: ponta, angulo } = useMemo(
+    () => computarCurva(multiplicador, crescimento),
+    [multiplicador, crescimento],
+  );
 
   // planeta = destino do asteroide (canto superior direito)
   // no mobile o asteroide sobe no mesmo eixo x do planeta → trajetória direta

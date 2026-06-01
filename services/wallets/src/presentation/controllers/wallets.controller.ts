@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, HttpCode, HttpStatus, TooManyRequestsException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateWalletUseCase } from '../../application/create-wallet.use-case';
 import { GetWalletUseCase } from '../../application/get-wallet.use-case';
@@ -8,6 +8,9 @@ import { UsuarioAtual } from '../../infrastructure/decorators/current-user.decor
 import type { UsuarioAutenticado } from '../../infrastructure/guards/keycloak-jwt.strategy';
 import { WalletResponseDto } from '../dtos/wallet-response.dto';
 import { HealthCheckResponseDto } from '../dtos/health-check-response.dto';
+
+const RESET_TTL_MS = 60_000; // 1 reset por minuto por jogador
+const ultimoReset  = new Map<string, number>();
 
 @ApiTags('carteiras')
 @Controller()
@@ -47,6 +50,12 @@ export class WalletsController {
   @ApiOperation({ summary: 'Resetar saldo para R$ 1.000.000,00 (início de sessão)' })
   @ApiResponse({ status: 204, description: 'Saldo resetado com sucesso' })
   async resetar(@UsuarioAtual() usuario: UsuarioAutenticado): Promise<void> {
+    const agora = Date.now();
+    const ultimo = ultimoReset.get(usuario.jogadorId) ?? 0;
+    if (agora - ultimo < RESET_TTL_MS) {
+      throw new TooManyRequestsException('Aguarde 1 minuto antes de resetar novamente');
+    }
+    ultimoReset.set(usuario.jogadorId, agora);
     await this.resetarCarteira.executar(usuario.jogadorId);
   }
 

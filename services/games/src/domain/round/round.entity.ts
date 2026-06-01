@@ -3,6 +3,10 @@ import { gerarSeedServidor, calcularHashSeed, calcularPontoCrash } from '../prov
 import { Bet, StatusAposta } from '../bet/bet.entity';
 import { ErroDominio } from '../erros';
 
+const MIN_APOSTA_CENTAVOS    = 100n;     // R$ 1,00
+const MAX_APOSTA_CENTAVOS    = 100_000n; // R$ 1.000,00
+const MIN_AUTO_CASHOUT       = 1.01;     // multiplicador mínimo para auto-cashout
+
 export enum StatusRodada {
   APOSTAS_ABERTAS = 'APOSTAS_ABERTAS',
   RODANDO = 'RODANDO',
@@ -91,13 +95,13 @@ export class Round {
     if (this._status !== StatusRodada.APOSTAS_ABERTAS) {
       throw new ErroDominio('Apostas só podem ser registradas na fase de apostas');
     }
-    if (valorCentavos < 100n || valorCentavos > 100_000n) {
+    if (valorCentavos < MIN_APOSTA_CENTAVOS || valorCentavos > MAX_APOSTA_CENTAVOS) {
       throw new ErroDominio('Valor da aposta fora do permitido (mínimo R$1,00 — máximo R$1.000,00)');
     }
     if (this._apostas.some(a => a.jogadorId === jogadorId)) {
       throw new ErroDominio('Jogador já tem uma aposta nesta rodada');
     }
-    if (autoCashout !== undefined && autoCashout < 1.01) {
+    if (autoCashout !== undefined && autoCashout < MIN_AUTO_CASHOUT) {
       throw new ErroDominio('Auto-cashout mínimo é 1.01×');
     }
 

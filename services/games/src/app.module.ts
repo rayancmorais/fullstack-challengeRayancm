@@ -10,6 +10,7 @@ import { GameEngineService } from './application/game-engine.service';
 import { RegistrarApostaUseCase } from './application/registrar-aposta.use-case';
 import { SacarUseCase } from './application/sacar.use-case';
 import { PUBLICADOR_MENSAGENS } from './application/publicador-mensagens';
+import { PUBLICADOR_EVENTOS } from './application/publicador-eventos.interface';
 
 // Infraestrutura
 import { PrismaService } from './infrastructure/prisma.service';
@@ -56,8 +57,9 @@ import { ApostasController } from './presentation/controllers/apostas.controller
     // Autenticação
     KeycloakJwtStrategy,
 
-    // WebSocket
+    // WebSocket — registrado também como IPublicadorEventos para desacoplar Application de Presentation
     GameGateway,
+    { provide: PUBLICADOR_EVENTOS, useExisting: GameGateway },
 
     // Motor do jogo e casos de uso
     GameEngineService,

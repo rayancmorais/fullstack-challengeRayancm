@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { WalletRepository } from '../domain/wallet.repository';
 
-const SALDO_INICIAL = 100_000_000n; // R$ 1.000.000,00 em centavos
+const SALDO_INICIAL = BigInt(process.env.WALLET_RESET_AMOUNT ?? '100000000'); // R$ 1.000.000,00 em centavos
 
 @Injectable()
 export class ResetWalletUseCase {

@@ -6,6 +6,7 @@ import { useGameStore } from '@/store/game'
 import { useGameSocket } from '@/hooks/useGameSocket'
 import { useBots } from '@/hooks/useBots'
 import { useSonsDoJogo } from '@/hooks/useSonsDoJogo'
+import { useGameStats } from '@/hooks/useGameStats'
 import { Topbar } from './Topbar'
 import { Stage } from './Stage'
 import { HistoryRail } from './HistoryRail'
@@ -19,7 +20,7 @@ import { Leaderboard } from './Leaderboard'
 import { placeBet, cashout, getWallet, getCurrentRound, getRoundHistory, createWallet, resetarSaldo } from '@/lib/api'
 import { centavosParaReais } from '@/lib/utils'
 import { Sound } from '@/lib/sound'
-import type { Stats } from './SessionStats'
+import type { Stats } from '@/hooks/useGameStats'
 import type { AutoBetCfg } from './AutoBetPanel'
 
 export function GamePage() {
@@ -47,7 +48,7 @@ function Game() {
   const autoRef = useRef({ auto, autoTarget })
   autoRef.current = { auto, autoTarget }
 
-  const [stats, setStats] = useState<Stats>({ pnl: 0, rodadas: 0, melhorSaque: 0, totalApostado: 0 })
+  const { stats, registrarAposta: regAposta, registrarSaque: regSaque, registrarPerda: regPerda } = useGameStats()
 
   // ── Auto-bet ──────────────────────────────────────────────────────────────
   const [ab, setAb] = useState<AutoBetCfg>({
@@ -122,8 +123,9 @@ function Game() {
         store.setHistorico(history.map(r => ({ rodadaId: r.id, pontoCrash: r.pontoCrash })))
       }).catch(() => {})
     })
+  // tokenValido é estável (referência do store Zustand não muda entre renders)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usuario])
+  }, [usuario, tokenValido])
 
   const playerBet = store.apostas.find(a => a.jogadorId === playerJogadorId) || null
   playerBetRef.current = playerBet
@@ -161,7 +163,7 @@ function Game() {
       const autoCashout = autoCashoutOverride !== undefined ? autoCashoutOverride : (autoOn ? at : undefined)
       const tk = await tokenValido()
       await placeBet(centavos, tk, autoCashout)
-      setStats(s => ({ ...s, pnl: s.pnl - centavos, totalApostado: s.totalApostado + centavos }))
+      regAposta(centavos)
       if (!quiet) {
         const sufixo = autoCashout ? ` · auto-cashout em ${autoCashout.toFixed(2)}×` : ''
         store.pushToast('success', 'Aposta confirmada', `R$ ${centavosParaReais(centavos)} na rodada atual.${sufixo}`)
@@ -186,12 +188,7 @@ function Game() {
       await refetchWallet()
       qc.invalidateQueries({ queryKey: ['wallet'] })
       const mult = playerBetRef.current?.multiplicadorSaque ?? store.multiplicador
-      setStats(s => ({
-        ...s,
-        pnl: s.pnl + pago,
-        melhorSaque: Math.max(s.melhorSaque, mult),
-        rodadas: s.rodadas + 1,
-      }))
+      regSaque(pago, mult)
       store.pushToast('gold', `Sacou em ${mult.toFixed(2)}×`, `+ R$ ${centavosParaReais(pago)} creditado.`)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro ao sacar'
@@ -237,12 +234,7 @@ function Game() {
     // atualizar stats visuais para vitórias (perdas são atualizadas no useEffect de crash)
     if (ganhou) {
       const mult = bet.multiplicadorSaque ?? 1
-      setStats(s => ({
-        ...s,
-        pnl: s.pnl + (bet.pagamentoCentavos ?? 0),
-        melhorSaque: Math.max(s.melhorSaque, mult),
-        rodadas: s.rodadas + 1,
-      }))
+      regSaque(bet.pagamentoCentavos ?? 0, mult)
       refetchWallet()
     }
 
@@ -302,7 +294,7 @@ function Game() {
       const pb = playerBetRef.current
       if (pb) {
         if (pb.status === 'PERDEU') {
-          setStats(s => ({ ...s, rodadas: s.rodadas + 1 }))
+          regPerda()
           store.pushToast(
             'error',
             `Crash em ${store.pontoCrash?.toFixed(2)}×`,

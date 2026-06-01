@@ -1,5 +1,6 @@
 'use client'
 import { fmt } from '@/lib/utils'
+import type { Stats } from '@/hooks/useGameStats'
 
 const IconCoins = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, color: 'var(--accent)' }}>
@@ -9,13 +10,6 @@ const IconCoins = () => (
     <path d="m16.71 13.88.7.71-2.82 2.82"/>
   </svg>
 )
-
-export interface Stats {
-  pnl: number        // centavos
-  rodadas: number
-  melhorSaque: number
-  totalApostado: number // centavos
-}
 
 interface Props {
   stats: Stats
