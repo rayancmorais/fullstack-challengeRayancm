@@ -174,6 +174,10 @@ export class GameEngineService implements OnModuleInit {
     }
   }
 
+  emitirAlertaCreditoFalhou(jogadorId: string, apostaId: string): void {
+    this.gateway.emitirAlertaCreditoFalhou(jogadorId, apostaId);
+  }
+
   private async encerrarRodada(): Promise<void> {
     if (!this.rodadaAtual) return;
 

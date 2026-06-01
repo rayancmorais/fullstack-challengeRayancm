@@ -35,6 +35,8 @@ export interface IPublicadorEventos {
     jogadorId: string;
     motivo: string;
   }): void;
+
+  emitirAlertaCreditoFalhou(jogadorId: string, apostaId: string): void;
 }
 
 export const PUBLICADOR_EVENTOS = 'PUBLICADOR_EVENTOS';

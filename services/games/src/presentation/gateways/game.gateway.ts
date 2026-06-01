@@ -76,4 +76,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, IP
   emitirApostaCancelada(dados: { rodadaId: string; jogadorId: string; motivo: string }): void {
     this.servidor.emit('aposta:cancelada', dados);
   }
+
+  emitirAlertaCreditoFalhou(jogadorId: string, apostaId: string): void {
+    // Emitido apenas para o jogador afetado (room pessoal, se configurada) ou broadcast
+    this.servidor.emit('aposta:credito_falhou', { jogadorId, apostaId });
+  }
 }

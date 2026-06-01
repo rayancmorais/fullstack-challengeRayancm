@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { GameEngineService } from '../../application/game-engine.service';
 
@@ -13,8 +13,17 @@ interface DebitoFalhouPayload {
   motivo: string;
 }
 
+// Falha no crédito — saque confirmado pelo domínio mas carteira rejeitou
+interface CreditoFalhouPayload {
+  apostaId: string;
+  jogadorId: string;
+  motivo: string;
+}
+
 @Controller()
 export class RabbitMQConsumer {
+  private readonly logger = new Logger(RabbitMQConsumer.name);
+
   constructor(private readonly engine: GameEngineService) {}
 
   @MessagePattern('bet.debit.confirmed')
@@ -31,6 +40,17 @@ export class RabbitMQConsumer {
 
   @MessagePattern('bet.credit.confirmed')
   aoReceberCreditoConfirmado(@Payload() dados: DebitoConfirmadoPayload): void {
-    console.log(`Pagamento creditado para aposta ${dados.apostaId}`);
+    this.logger.log(`Pagamento creditado para aposta ${dados.apostaId}`);
+  }
+
+  @MessagePattern('bet.credit.failed')
+  aoReceberCreditoFalhou(@Payload() dados: CreditoFalhouPayload): void {
+    // O saque já foi confirmado no domínio (status SACOU). Não há rollback possível
+    // sem Outbox/Saga. Logamos para investigação e emitimos alerta no WebSocket.
+    this.logger.error(
+      `Falha ao creditar saque da aposta ${dados.apostaId} ` +
+      `para jogador ${dados.jogadorId}: ${dados.motivo}`,
+    );
+    this.engine.emitirAlertaCreditoFalhou(dados.jogadorId, dados.apostaId);
   }
 }

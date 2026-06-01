@@ -2,12 +2,24 @@
 
 Projeto fullstack desenvolvido como desafio técnico para a Jungle Gaming. É um crash game multiplayer em tempo real: um multiplicador sobe a partir de `1.00x` e pode "crashar" a qualquer momento. Jogadores apostam antes da rodada e precisam sacar antes do crash para garantir os ganhos — quem não saca, perde.
 
+**Bônus implementados:** Auto-cashout server-side · Auto-bet Martingale · Leaderboard · Efeitos sonoros · CI GitHub Actions · Rate limiting Kong · Swagger/OpenAPI · Animação SVG customizada
+
+---
+
+## Credenciais de acesso
+
+| Serviço | Usuário | Senha |
+|---------|---------|-------|
+| Keycloak Admin | `admin` | `admin` |
+| RabbitMQ Management | `admin` | `admin` |
+| Jogador de teste | `player` | `player123` |
+
 ---
 
 ## Arquitetura
 
 ```
-Frontend (Next.js · porta 3001 Docker / 3000 dev)
+Frontend (Next.js · porta 3001)
     │
     ├── REST/HTTP ──────────────────────────────────────►
     │                  Kong API Gateway (porta 8000)
@@ -46,7 +58,7 @@ Keycloak (8080) — valida JWT em ambos os serviços via JWKS (RS256)
 | Frontend | Next.js (App Router, standalone) | 15.5 |
 | Estado WS | Zustand | 5.x |
 | Estado REST | TanStack Query | 5.x |
-| Auth UI | react-oidc-context + PKCE S256 | 3.x |
+| Auth UI | OIDC customizado (PKCE S256 + ROPC demo) | — |
 | CSS | Tailwind CSS | v4 |
 
 ---
@@ -64,9 +76,7 @@ bun run docker:up
 
 Aguarda todos os healthchecks passarem (~30–60s). O Keycloak leva um pouco mais na primeira vez que baixar a imagem.
 
-**Usuário de teste pré-configurado:** `player` / `player123`
-
-O frontend abre em `http://localhost:3001`. O login redireciona para o Keycloak automaticamente.
+O frontend abre em `http://localhost:3001`. O login usa o usuário `player` / `player123` pré-configurado.
 
 ### Autenticação — Nota sobre o flow de login
 
@@ -91,8 +101,8 @@ Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend
 | Wallet Service (direto) | http://localhost:4002 |
 | Kong (API Gateway) | http://localhost:8000 |
 | Kong Admin API | http://localhost:8001 |
-| Keycloak Admin | http://localhost:8080 (`admin` / `admin`) |
-| RabbitMQ Management | http://localhost:15672 (`admin` / `admin`) |
+| Keycloak Admin | http://localhost:8080 |
+| RabbitMQ Management | http://localhost:15672 |
 | Swagger Games | http://localhost:8000/games/api |
 | Swagger Wallets | http://localhost:8000/wallets/api |
 
@@ -103,8 +113,9 @@ Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend
 | GET | `/rounds/current` | não | Estado da rodada ativa com lista de apostas |
 | GET | `/rounds/history?limit=N` | não | Histórico paginado de rodadas encerradas |
 | GET | `/rounds/:id/verify` | não | Dados de verificação provably fair da rodada |
+| GET | `/leaderboard?period=24h\|week` | não | Top 10 jogadores por lucro no período |
 | GET | `/bets/me` | sim | Histórico de apostas do jogador autenticado |
-| POST | `/bet` | sim | Apostar na rodada atual |
+| POST | `/bet` | sim | Apostar na rodada atual (`valorCentavos`, `autoCashout?`) |
 | POST | `/bet/cashout` | sim | Sacar no multiplicador atual |
 
 ### REST — Wallet Service (via Kong em `/wallets`)
@@ -113,6 +124,7 @@ Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend
 |--------|---------|------|-----------|
 | POST | `/wallets` | sim | Cria carteira para o jogador autenticado |
 | GET | `/wallets/me` | sim | Retorna saldo atual em centavos |
+| POST | `/wallets/reset` | sim | Reseta saldo para R$ 1.000.000,00 (rate-limit: 1/min) |
 
 ### WebSocket — namespace `/jogo` (porta 4001 direto)
 
@@ -127,6 +139,7 @@ Apenas server-push. Ações do jogador vão por REST.
 | `aposta:registrada` | Nova aposta confirmada | `jogadorId`, `nomeUsuario`, `valorCentavos` |
 | `aposta:saque` | Cashout de um jogador | `jogadorId`, `pagamentoCentavos`, `multiplicador` |
 | `aposta:cancelada` | Débito falhou | `jogadorId`, `motivo` |
+| `aposta:credito_falhou` | Crédito falhou após saque | `jogadorId`, `apostaId` |
 
 ---
 
@@ -134,18 +147,19 @@ Apenas server-push. Ações do jogador vão por REST.
 
 ```bash
 # Unitários — sem Docker
-cd services/games && bun test tests/unit     # 48 testes (Round 22, Bet 14, Provably Fair 12)
-cd services/wallets && bun test tests/unit   # 15 testes (Wallet entity)
+cd services/games   && bun test tests/unit   # 48 testes (Round 22, Bet 14, Provably Fair 12)
+cd services/wallets && bun test tests/unit   # 23 testes (Wallet entity + Use Cases)
+cd frontend         && bun test              # 20 testes (lib/utils)
 
 # Arquivo específico
 cd services/games && bun test tests/unit/round.test.ts
 
 # E2E — requer docker:up + imagem atualizada
 docker compose build games && docker compose restart games
-cd services/games && bun test tests/e2e     # 8 cenários
+cd services/games && bun test tests/e2e     # 11 cenários
 ```
 
-**63 testes unitários** + **8 cenários E2E**.
+**91 testes unitários** + **11 cenários E2E** (bet→cashout→saldo, bet→crash→perdido, validações).
 
 ---
 
@@ -156,6 +170,8 @@ cd services/games && bun test tests/e2e     # 8 cenários
 Cada serviço segue `domain → application → infrastructure → presentation`. A camada `domain` é TypeScript puro — zero NestJS, zero Prisma. Isso permite testar regras de negócio sem nenhum mock de framework.
 
 O Game Service usa `ErroDominio` (throw) para violações. O Wallet Service usa `Resultado<T>` (return type discriminado). Os dois estilos coexistem intencionalmente.
+
+A comunicação entre `Application` e `Presentation` é desacoplada via interface: `IPublicadorEventos` (em `application/`) define o contrato de emissão de eventos WebSocket. `GameGateway` (em `presentation/`) implementa a interface e é injetado via token `PUBLICADOR_EVENTOS`. O `GameEngineService` depende apenas da abstração, nunca do Gateway concreto.
 
 ### Prisma 7 — nova configuração de datasource
 
@@ -190,6 +206,23 @@ No cashout:
   → Game publica bet.credit.requested → [wallet.commands]
   → Wallet credita
   → Wallet publica bet.credit.confirmed → [game.events]
+  → Game loga sucesso (ou trata bet.credit.failed com alerta WS)
 ```
 
-Gap conhecido: `bet.credit.failed` não tem handler no Game Service — falha de crédito no cashout é ignorada silenciosamente.
+Sem Outbox/Saga: se o broker cair entre o publish e o ACK, a mensagem pode ser perdida.
+Em produção seria necessário um outbox transacional para garantia at-least-once.
+
+---
+
+## Bônus implementados
+
+| Bônus | Status | Detalhe |
+|-------|--------|---------|
+| Auto-cashout no servidor | ✅ | `autoCashout` persistido na aposta; `verificarAutoCashouts()` a cada tick |
+| Auto-bet (Martingale/fixo) | ✅ | `useAutoBetController` hook + `AutoBetPanel.tsx` |
+| Efeitos sonoros | ✅ | Web Audio API (blips) + `rise.mp3` loop + `boom.mp3` no crash |
+| Leaderboard | ✅ | `GET /leaderboard?period=24h\|week` + SQL raw + frontend com TanStack Query |
+| CI (GitHub Actions) | ✅ | `.github/workflows/ci.yml` — jobs paralelos, cache Bun, build-check Docker |
+| Rate limiting (Kong) | ✅ | 60 req/min em POST /games; 1 reset/min em POST /wallets/reset |
+| Swagger/OpenAPI | ✅ | `/games/api` e `/wallets/api` via Kong |
+| Animação SVG customizada (fase de crash) | ✅ | Asteroide + planeta com expressões, escudo, explosão, confetes |
