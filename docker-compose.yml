@@ -97,6 +97,7 @@ services:
     build:
       context: ./services/games
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "4001:4001"
     environment:
@@ -123,6 +124,7 @@ services:
     build:
       context: ./services/wallets
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "4002:4002"
     environment:
