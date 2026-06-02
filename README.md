@@ -118,7 +118,7 @@ Os jogadores simulados ("bots") exibidos na interface são **gerados no frontend
 | Kong Admin API          | http://localhost:8001                           |
 | Keycloak Admin          | http://localhost:8080                           |
 | RabbitMQ Management     | http://localhost:15672                          |
-| Swagger Games           | Swagger Games: http://localhost:8000/games/docs |
+| Swagger Games           | http://localhost:8000/games/docs                |
 | Swagger Wallets         | http://localhost:4002/docs                      |
 
 ### REST — Game Service (via Kong em `/games`)
@@ -239,5 +239,5 @@ Em produção seria necessário um outbox transacional para garantia at-least-on
 | Leaderboard                              | ✅     | `GET /leaderboard?period=24h\|week` + SQL raw + frontend com TanStack Query |
 | CI (GitHub Actions)                      | ✅     | `.github/workflows/ci.yml` — jobs paralelos, cache Bun, build-check Docker  |
 | Rate limiting (Kong)                     | ✅     | 60 req/min em POST /games; 1 reset/min em POST /wallets/reset               |
-| Swagger/OpenAPI                          | ✅     | `/games/api` e `/wallets/api` via Kong                                      |
+| Swagger/OpenAPI                          | ✅     | `/games/docs` e `/wallets/docs`                                             |
 | Animação SVG customizada (fase de crash) | ✅     | Asteroide + planeta com expressões, escudo, explosão, confetes              |
