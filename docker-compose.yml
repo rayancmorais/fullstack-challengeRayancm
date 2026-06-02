@@ -3,6 +3,7 @@ services:
   # PostgreSQL 18
   # ---------------------------------------------------------------------------
   postgres:
+    platform: linux/amd64
     image: postgres:18.3-alpine
     ports:
       - "5432:5432"
@@ -24,6 +25,7 @@ services:
   # RabbitMQ (with management UI)
   # ---------------------------------------------------------------------------
   rabbitmq:
+    platform: linux/amd64
     image: rabbitmq:4.2.4-management-alpine
     ports:
       - "5672:5672"
@@ -43,6 +45,7 @@ services:
   # Keycloak (Identity Provider)
   # ---------------------------------------------------------------------------
   keycloak:
+    platform: linux/amd64
     image: quay.io/keycloak/keycloak:26.5.5
     command: start-dev --import-realm
     ports:
@@ -64,6 +67,7 @@ services:
   # Kong (API Gateway — DB-less / declarative)
   # ---------------------------------------------------------------------------
   kong:
+    platform: linux/amd64
     image: kong:3.9.1
     ports:
       - "8000:8000"
