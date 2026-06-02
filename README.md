@@ -76,22 +76,19 @@ bun run docker:up
 
 Aguarda todos os healthchecks passarem (~30–60s). O Keycloak leva um pouco mais na primeira vez que baixar a imagem.
 
-O frontend abre em `http://localhost:3001`. O login usa o usuário `player` / `player123` pré-configurado.
+O frontend abre em `http://localhost:3001`. O login usa o usuário `player` / `player123` — já pré-configurado no Keycloak e com saldo pré-carregado na carteira (seed automático via `prisma db seed` no startup do Wallet Service).
 
 ## Variáveis de Ambiente
 
-Os arquivos `.env` não estão no repositório por segurança.
-Cada serviço tem um `.env.example` com os valores padrão para desenvolvimento local.
+Os arquivos `.env` não estão no repositório. Para rodar com Docker, **nenhum passo manual é necessário** — todas as variáveis dos serviços de backend são injetadas pelo docker-compose via bloco `environment:`, e o frontend tem os valores padrão hardcoded como `ARG` no `Dockerfile`.
 
-Para configurar manualmente (não necessário com Docker):
+Os `.env.example` existem apenas para rodar os serviços **fora do Docker** (modo dev local):
 
 ```bash
 cp services/games/.env.example services/games/.env
 cp services/wallets/.env.example services/wallets/.env
 cp frontend/.env.local.example frontend/.env.local
 ```
-
-Com `bun run docker:up` as variáveis são injetadas automaticamente pelo Docker Compose — não é necessário criar os arquivos `.env` manualmente para rodar o projeto.
 
 ### Autenticação — Nota sobre o flow de login
 
